@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python SDK - S2SP Protocol</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="../index.html" class="nav-logo">
+            <span class="logo-icon">S</span>
+            S2SP Protocol
+        </a>
+        <ul class="nav-links">
+            <li><a href="../index.html">Home</a></li>
+            <li><a href="introduction.html">Docs</a></li>
+            <li><a href="protocol.html">Protocol</a></li>
+            <li><a href="sdk.html" class="active">SDK</a></li>
+            <li><a href="demos.html">Demos</a></li>
+            <li><a href="tutorial.html">Tutorial</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="doc-layout">
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <h4>Getting Started</h4>
+            <a href="introduction.html">Introduction</a>
+            <a href="introduction.html#quick-start">Quick Start</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Learn</h4>
+            <a href="protocol.html">Protocol Design</a>
+            <a href="protocol.html#architecture">Architecture</a>
+            <a href="protocol.html#security">Security</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Develop</h4>
+            <a href="sdk.html" class="active">Python SDK</a>
+            <a href="sdk.html#api-reference">API Reference</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Examples</h4>
+            <a href="demos.html">Demos</a>
+        </div>
+    </aside>
+
+    <main class="doc-content">
+        <h1>Python SDK</h1>
+        <p>
+            The <code>mcp-s2sp</code> Python package provides everything you need to build
+            MCP servers with server-to-server data transfer capabilities. The
+            <code>S2SPServer</code> class embeds a <code>FastMCP</code> instance automatically
+            and provides the <code>@s2sp_resource_tool()</code> decorator, which wraps normal MCP tools
+            with a control-plane/data-plane split: when <code>abstract_domains</code> is set,
+            fields are filtered (control plane), full data is cached (data plane), and a
+            <code>resource_url</code> (presigned URL) is returned for later retrieval.
+        </p>
+
+        <h2>Installation</h2>
+        <p>Install from PyPI:</p>
+        <div class="install-block">
+            <span class="dollar">$</span>
+            <code>pip install mcp-s2sp</code>
+        </div>
+        <p>Or install with optional dependencies for async HTTP:</p>
+        <div class="install-block">
+            <span class="dollar">$</span>
+            <code>pip install mcp-s2sp[async]</code>
+        </div>
+        <p>Requirements: Python 3.10+, <code>mcp</code> SDK, <code>httpx</code>, <code>pydantic</code>.</p>
+
+        <h2>SDK Architecture</h2>
+        <p>
+            The SDK is organized around the <code>S2SPServer</code> class and supporting modules:
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Module</th>
+                    <th>Responsibility</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>server.py</code></td>
+                    <td>The <code>S2SPServer</code> class. Constructor takes a name and embeds a <code>FastMCP</code> instance automatically. Provides <code>@s2sp_resource_tool()</code> for the primary decorator, <code>server.mcp</code> for direct FastMCP access, and <code>run()</code> to start as an MCP server.</td>
+                </tr>
+                <tr>
+                    <td><code>direct_channel.py</code></td>
+                    <td>The <code>DirectChannel</code> class. Provides the static method <code>fetch_data(resource_url, row_ids=None, columns=None, column_mapping=None)</code> for receiver servers to fetch specific rows from a source server's data plane.</td>
+                </tr>
+                <tr>
+                    <td><code>errors.py</code></td>
+                    <td>Custom exception classes for S2SP error handling.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 id="api-reference">S2SPServer API</h2>
+        <p>
+            The <code>S2SPServer</code> class is the primary interface for building MCP servers
+            with S2SP capabilities. It embeds a <code>FastMCP</code> instance and provides the
+            <code>@s2sp_resource_tool()</code> decorator as the primary way to expose data tools.
+        </p>
+
+        <h3>Constructor</h3>
+        <div class="code-block">
+            <pre><span class="keyword">from</span> mcp_s2sp <span class="keyword">import</span> S2SPServer
+
+server = <span class="func">S2SPServer</span>(<span class="string">"my-server"</span>)  <span class="comment"># Name for the server; embeds FastMCP automatically</span></pre>
+        </div>
+
+        <h3>server.mcp</h3>
+        <p>
+            Access the embedded <code>FastMCP</code> instance directly. Use this to register
+            custom tools, resources, or prompts that don't need the S2SP control-plane/data-plane
+            split.
+        </p>
+        <div class="code-block">
+            <pre><span class="comment"># Register a plain MCP tool via the embedded FastMCP instance</span>
+<span class="decorator">@server.mcp.tool()</span>
+<span class="keyword">async def</span> <span class="func">ping</span>() -> <span class="func">str</span>:
+    <span class="keyword">return</span> <span class="string">"pong"</span></pre>
+        </div>
+
+        <h2>Resource Tools vs Consumer Tools</h2>
+        <p>
+            S2SP distinguishes two types of MCP tools:
+        </p>
+        <table>
+            <thead>
+                <tr><th></th><th>Resource Tool</th><th>Consumer Tool</th></tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Decorator</strong></td>
+                    <td><code>@server.s2sp_resource_tool()</code></td>
+                    <td><code>@server.s2sp_consumer_tool()</code></td>
+                </tr>
+                <tr>
+                    <td><strong>You write</strong></td>
+                    <td><code>async def get_data(...) -> list[dict]</code></td>
+                    <td><code>async def process(rows: list[dict]) -> str</code></td>
+                </tr>
+                <tr>
+                    <td><strong>Returns</strong></td>
+                    <td><code>list[dict]</code> &mdash; S2SP adds <code>abstract_domains</code>, <code>mode</code>, <code>_row_id</code></td>
+                    <td>Anything &mdash; it's a normal MCP tool</td>
+                </tr>
+                <tr>
+                    <td><strong>Data plane</strong></td>
+                    <td>Caches body, serves via <code>/s2sp/data/</code></td>
+                    <td>Fetches + remaps + merges automatically</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>@server.s2sp_resource_tool() &mdash; Resource Tool</h3>
+        <p>
+            Use this for tools that return tabular data. The decorator wraps a function
+            returning <code>list[dict]</code> and automatically adds <code>abstract_domains</code>
+            and <code>mode</code> parameters. When <code>abstract_domains</code> is set, the tool
+            filters to those columns (+ <code>_row_id</code>), caches the full data, and returns
+            a <code>resource_url</code> for data-plane access.
+        </p>
+        <div class="code-block">
+            <pre><span class="decorator">@server.s2sp_resource_tool()</span>
+<span class="keyword">async def</span> <span class="func">get_alerts</span>(area: <span class="func">str</span>) -> <span class="func">list</span>[<span class="func">dict</span>]:
+    <span class="string">"""Get weather alerts for a US state."""</span>
+    data = <span class="keyword">await</span> <span class="func">fetch_from_nws</span>(area)
+    <span class="keyword">return</span> [f[<span class="string">"properties"</span>] <span class="keyword">for</span> f <span class="keyword">in</span> data[<span class="string">"features"</span>]]</pre>
+        </div>
+        <h4>Input (added by decorator)</h4>
+        <table>
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr><td><code>abstract_domains</code></td><td>str</td><td>Comma-separated column names for control plane. Omit for all columns.</td></tr>
+                <tr><td><code>mode</code></td><td>str</td><td><code>"async"</code> (default): cache body, return <code>resource_url</code>. <code>"sync"</code>: return body inline.</td></tr>
+            </tbody>
+        </table>
+
+        <h4>Output (async mode)</h4>
+        <div class="code-block">
+            <pre>{
+  <span class="string">"total_rows"</span>: 8,
+  <span class="string">"columns"</span>: [<span class="string">"id"</span>, <span class="string">"event"</span>, <span class="string">"severity"</span>, ... <span class="comment">all 30</span>],
+  <span class="string">"abstract_domains"</span>: [<span class="string">"event"</span>, <span class="string">"severity"</span>],
+  <span class="string">"body_domains"</span>: [<span class="string">"description"</span>, <span class="string">"instruction"</span>, ... <span class="comment">remaining 28</span>],
+  <span class="string">"resource_url"</span>: <span class="string">"http://host:port/s2sp/data/TOKEN..."</span>,
+  <span class="string">"abstract"</span>: [
+    {<span class="string">"_row_id"</span>: 0, <span class="string">"event"</span>: <span class="string">"Wind Advisory"</span>, <span class="string">"severity"</span>: <span class="string">"Moderate"</span>},
+    {<span class="string">"_row_id"</span>: 1, <span class="string">"event"</span>: <span class="string">"Flood Watch"</span>, <span class="string">"severity"</span>: <span class="string">"Minor"</span>},
+    ...
+  ]
+}</pre>
+        </div>
+
+        <h4>Output (sync mode)</h4>
+        <div class="code-block">
+            <pre>{
+  <span class="string">"total_rows"</span>: 8,
+  <span class="string">"abstract_domains"</span>: [<span class="string">"event"</span>, <span class="string">"severity"</span>],
+  <span class="string">"body_domains"</span>: [<span class="string">"description"</span>, ...],
+  <span class="string">"abstract"</span>: [
+    {<span class="string">"_row_id"</span>: 0, <span class="string">"event"</span>: <span class="string">"Wind Advisory"</span>, <span class="string">"severity"</span>: <span class="string">"Moderate"</span>},
+    ...
+  ],
+  <span class="string">"body"</span>: [
+    {<span class="string">"_row_id"</span>: 0, <span class="string">"description"</span>: <span class="string">"North winds 25-35 mph..."</span>, ...},
+    ...
+  ]
+  <span class="comment">// No resource_url — body is inline</span>
+}</pre>
+        </div>
+
+        <h4>Output (no abstract_domains)</h4>
+        <p>Returns the raw <code>list[dict]</code> as-is — standard MCP behavior.</p>
+
+        <h3>server.run()</h3>
+        <p>
+            Start the server as an MCP server over stdio. Compatible with <code>mcp dev</code>
+            for local development.
+        </p>
+        <div class="code-block">
+            <pre>server.<span class="func">run</span>()</pre>
+        </div>
+
+        <h2>DirectChannel API (used by Consumer Tools)</h2>
+        <p>
+            The <code>DirectChannel</code> class provides a static method for consumer servers
+            to fetch body data directly from a resource server's data plane.
+        </p>
+
+        <h3>DirectChannel.fetch_data()</h3>
+        <p>
+            Static method that consumer tools call to fetch rows from the resource
+            server. Takes the presigned <code>resource_url</code>, optional
+            <code>row_ids</code>, optional <code>columns</code>, and optional
+            <code>column_mapping</code> to rename columns.
+        </p>
+        <div class="code-block">
+            <pre><span class="keyword">from</span> mcp_s2sp.direct_channel <span class="keyword">import</span> DirectChannel
+
+items = <span class="keyword">await</span> DirectChannel.<span class="func">fetch_data</span>(
+    resource_url,        <span class="comment"># Presigned URL from s2sp_tool response</span>
+    row_ids=[0, 2, 5],   <span class="comment"># Optional: select rows by _row_id</span>
+    columns=<span class="keyword">None</span>,        <span class="comment"># Optional: select columns (before mapping)</span>
+    column_mapping={     <span class="comment"># Optional: rename columns after fetch</span>
+        <span class="string">"event"</span>: <span class="string">"alert_type"</span>,
+        <span class="string">"areaDesc"</span>: <span class="string">"location"</span>,
+    },
+)</pre>
+        </div>
+
+        <p>
+            <strong>Note:</strong> The <code>column_mapping</code> parameter in
+            <code>@s2sp_consumer_tool()</code> remaps body columns fetched from
+            the resource server's data plane. Abstract columns are already in the
+            agent's context, so the agent can rename them directly.
+            <code>DirectChannel.remap_columns(rows, mapping)</code> is available
+            as a standalone utility for advanced use cases.
+        </p>
+
+        <h2>Complete Example: Resource Server</h2>
+        <p>
+            A resource server exposes data via <code>@server.s2sp_resource_tool()</code>. The tool returns
+            <code>list[dict]</code> and the S2SP decorator handles caching and field filtering
+            automatically.
+        </p>
+        <div class="code-block">
+            <pre><span class="keyword">from</span> mcp_s2sp <span class="keyword">import</span> S2SPServer
+
+server = <span class="func">S2SPServer</span>(<span class="string">"weather-server"</span>)
+
+<span class="decorator">@server.s2sp_resource_tool()</span>
+<span class="keyword">async def</span> <span class="func">get_alerts</span>(area: <span class="func">str</span>) -> <span class="func">list</span>[<span class="func">dict</span>]:
+    <span class="string">"""Get weather alerts for a US state."""</span>
+    data = <span class="keyword">await</span> <span class="func">fetch_from_nws</span>(area)
+    <span class="keyword">return</span> [f[<span class="string">"properties"</span>] <span class="keyword">for</span> f <span class="keyword">in</span> data[<span class="string">"features"</span>]]
+
+server.<span class="func">run</span>()</pre>
+        </div>
+
+        <h2>Complete Example: Consumer Server</h2>
+        <p>
+            A consumer server uses <code>@server.s2sp_consumer_tool()</code>. The decorator
+            handles fetching, remapping, and merging &mdash; your function just receives
+            merged rows.
+        </p>
+        <div class="code-block">
+            <pre><span class="keyword">from</span> mcp_s2sp <span class="keyword">import</span> S2SPServer
+
+server = <span class="func">S2SPServer</span>(<span class="string">"stats-server"</span>)
+
+<span class="decorator">@server.s2sp_consumer_tool()</span>
+<span class="keyword">async def</span> <span class="func">draw_chart</span>(rows: <span class="func">list</span>[<span class="func">dict</span>]) -> <span class="func">str</span>:
+    <span class="comment"># rows = merged abstract + body, columns remapped</span>
+    <span class="keyword">return</span> <span class="func">generate_chart</span>(rows)
+
+server.<span class="func">run</span>()</pre>
+        </div>
+
+        <h4>Input (added by decorator)</h4>
+        <table>
+            <thead><tr><th>Parameter</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr><td><code>abstract_data</code></td><td>str</td><td>JSON array of abstract rows from the agent (must have <code>_row_id</code>).</td></tr>
+                <tr><td><code>resource_url</code></td><td>str</td><td>Presigned URL from <code>@s2sp_resource_tool()</code> response (async mode). Leave empty for sync.</td></tr>
+                <tr><td><code>body_data</code></td><td>str</td><td>JSON array of body rows (sync mode). Leave empty for async.</td></tr>
+                <tr><td><code>column_mapping</code></td><td>str</td><td>Optional JSON dict to rename columns. E.g. <code>'{"event": "alert_type"}'</code>.</td></tr>
+            </tbody>
+        </table>
+
+        <h4>What your function receives</h4>
+        <p>
+            A single <code>rows: list[dict]</code> argument &mdash; the merged result of
+            abstract + body, joined by <code>_row_id</code>, with columns renamed if
+            <code>column_mapping</code> was provided. Each row has all columns (both
+            abstract and body). Example:
+        </p>
+        <div class="code-block">
+            <pre>[
+  {<span class="string">"_row_id"</span>: 0, <span class="string">"event"</span>: <span class="string">"Wind Advisory"</span>, <span class="string">"severity"</span>: <span class="string">"Moderate"</span>,
+   <span class="string">"description"</span>: <span class="string">"North winds 25-35 mph..."</span>, <span class="string">"instruction"</span>: <span class="string">"Use caution..."</span>, ...},
+  {<span class="string">"_row_id"</span>: 2, <span class="string">"event"</span>: <span class="string">"High Wind Warning"</span>, <span class="string">"severity"</span>: <span class="string">"Severe"</span>,
+   <span class="string">"description"</span>: <span class="string">"Gusts up to 55 mph..."</span>, ...},
+]</pre>
+        </div>
+    </main>
+</div>
+
+<footer class="footer">
+    <p>S2SP Protocol &mdash; An open extension for MCP. <a href="https://github.com/s2sp-protocol/python-sdk">GitHub</a></p>
+</footer>
+
+</body>
+</html>

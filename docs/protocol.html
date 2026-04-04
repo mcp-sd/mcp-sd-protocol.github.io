@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protocol Design - S2SP Protocol</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="../index.html" class="nav-logo">
+            <span class="logo-icon">S</span>
+            S2SP Protocol
+        </a>
+        <ul class="nav-links">
+            <li><a href="../index.html">Home</a></li>
+            <li><a href="introduction.html">Docs</a></li>
+            <li><a href="protocol.html" class="active">Protocol</a></li>
+            <li><a href="sdk.html">SDK</a></li>
+            <li><a href="demos.html">Demos</a></li>
+            <li><a href="tutorial.html">Tutorial</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="doc-layout">
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <h4>Getting Started</h4>
+            <a href="introduction.html">Introduction</a>
+            <a href="introduction.html#quick-start">Quick Start</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Learn</h4>
+            <a href="protocol.html" class="active">Protocol Design</a>
+            <a href="#data-model">Data Model</a>
+            <a href="#two-planes">Two Planes</a>
+            <a href="#async-mode">Async Mode</a>
+            <a href="#sync-mode">Sync Mode</a>
+            <a href="#data-plane-endpoint">Data Plane Endpoint</a>
+            <a href="#security">Security</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Develop</h4>
+            <a href="sdk.html">Python SDK</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Examples</h4>
+            <a href="demos.html">Demos</a>
+        </div>
+    </aside>
+
+    <main class="doc-content">
+        <h1>Protocol Design</h1>
+        <p>
+            S2SP divides data communication between an AI agent and MCP servers into a
+            <strong>control plane</strong> (what the LLM sees) and a <strong>data plane</strong>
+            (what flows between servers or through the agent's SDK without entering the LLM context).
+        </p>
+
+        <h2 id="data-model">Data Model</h2>
+        <p>
+            S2SP applies to MCP tools that return <strong>structured tabular data</strong> &mdash;
+            like a pandas DataFrame: <em>n</em> rows &times; <em>w</em> columns. Each row is a
+            data sample with several column fields.
+        </p>
+        <p>
+            The columns are divided into two groups at call time by the agent:
+        </p>
+        <ul>
+            <li><strong>Abstract domains</strong> (control plane): Columns the LLM needs for
+                reasoning and decision-making. These are returned to the agent.</li>
+            <li><strong>Body domains</strong> (data plane): Remaining columns. These bypass
+                the LLM &mdash; either cached on the source server (async) or passed through
+                the agent's SDK layer (sync) without entering the LLM context.</li>
+        </ul>
+        <p>
+            Every row gets an auto-generated <code>_row_id</code> (integer index: 0, 1, 2, ...),
+            used to reconcile abstract and body when merging later.
+        </p>
+        <div class="code-block">
+            <pre><span class="comment"># A tool returns 30 columns per row. Agent requests only 4:</span>
+get_alerts(area=<span class="string">"CA"</span>, abstract_domains=<span class="string">"event,severity,urgency,status"</span>)
+
+<span class="comment"># Response (control plane):</span>
+{
+  <span class="string">"total_rows"</span>: 14,
+  <span class="string">"abstract_domains"</span>: [<span class="string">"event"</span>, <span class="string">"severity"</span>, <span class="string">"urgency"</span>, <span class="string">"status"</span>],
+  <span class="string">"body_domains"</span>: [<span class="string">"description"</span>, <span class="string">"instruction"</span>, ... <span class="comment">26 more</span>],
+  <span class="string">"abstract"</span>: [
+    {<span class="string">"_row_id"</span>: 0, <span class="string">"event"</span>: <span class="string">"Wind Advisory"</span>, <span class="string">"severity"</span>: <span class="string">"Moderate"</span>, ...},
+    {<span class="string">"_row_id"</span>: 1, <span class="string">"event"</span>: <span class="string">"Flood Watch"</span>, <span class="string">"severity"</span>: <span class="string">"Minor"</span>, ...},
+    ...
+  ],
+  <span class="string">"resource_url"</span>: <span class="string">"http://host:port/s2sp/data/dK7x_..."</span>  <span class="comment">// async mode only (presigned URL)</span>
+}</pre>
+        </div>
+
+        <h2 id="two-planes">Two Planes</h2>
+
+        <h3>Control Plane</h3>
+        <p>
+            The control plane uses standard MCP tool calls. The agent calls an
+            <code>@s2sp_resource_tool()</code>-decorated tool with <code>abstract_domains</code> to
+            specify which columns it needs. The response contains only those columns +
+            <code>_row_id</code>. The agent uses this lightweight data to filter, reason,
+            and decide which rows matter &mdash; then tells a consumer server what to do.
+        </p>
+
+        <h3>Data Plane</h3>
+        <p>
+            The data plane carries body domains. It operates differently depending on the mode:
+        </p>
+        <ul>
+            <li><strong>Async mode</strong> &mdash; Direct HTTP between servers. Body data is
+                cached on the source server. A consumer server fetches it via
+                a <code>POST</code> request to the presigned <code>resource_url</code>. The agent has no visibility into
+                this channel. Data flows server-to-server only.</li>
+            <li><strong>Sync mode</strong> &mdash; Data channel through the agent. Body data
+                is returned inline alongside the abstract in a single tool response. The body
+                passes through the agent's SDK layer but is <em>not</em> sent to the LLM &mdash;
+                only the abstract enters the LLM context. No server-to-server fetch needed.</li>
+        </ul>
+
+        <h2 id="async-mode">Async Mode (default)</h2>
+        <p>
+            Body data is cached on the source server. The response includes
+            <code>resource_url</code> but no body.
+        </p>
+        <ol>
+            <li>Agent calls <code>get_alerts(area="CA", abstract_domains="event,severity", mode="async")</code></li>
+            <li>Source server fetches all data, assigns <code>_row_id</code> to each row, caches full data</li>
+            <li>Returns abstract rows + <code>resource_url</code> (no body)</li>
+            <li>Agent filters on abstract, selects rows, passes abstract + resource ref to consumer</li>
+            <li>Consumer calls <code>POST /s2sp/data/{resource_url}</code> on source server with <code>{"row_ids": [...]}</code></li>
+            <li>Source returns full data for selected rows. Agent never saw it.</li>
+        </ol>
+        <div class="code-block">
+            <pre><span class="comment">Agent                 Source Server              Consumer Server</span>
+  |                         |                          |
+  |  <span class="keyword">get_alerts</span>(abstract_   |                          |
+  |    domains="event,..")  |                          |
+  |────────────────────────▶|                          |
+  |                         |  cache full data         |
+  |  ◀─ abstract + resource |  assign _row_id          |
+  |     _id + _url          |                          |
+  |                         |                          |
+  |  <span class="func">filter</span>: pick wind rows  |                          |
+  |                         |                          |
+  |  <span class="keyword">draw_chart</span>(abstract,   |                          |
+  |    resource_url, _url)   |                          |
+  |────────────────────────────────────────────────────▶|
+  |                         |                          |
+  |                         |  <span class="string">POST &lt;resource_url&gt;</span>      |
+  |                         |◀─────────────────────────|
+  |                         |  {"row_ids": [0,2,5]}    |
+  |                         |                          |
+  |                         |──────────────────────────▶|
+  |                         |  full body data           |
+  |                         |                          |
+  |  ◀─ chart result        |                     <span class="func">merge + chart</span></pre>
+        </div>
+
+        <h2 id="sync-mode">Sync Mode</h2>
+        <p>
+            Body data returned inline. No <code>resource_url</code>.
+            No server-to-server fetch.
+        </p>
+        <ol>
+            <li>Agent calls <code>get_alerts(area="CA", abstract_domains="event,severity", mode="sync")</code></li>
+            <li>Source returns abstract + body inline (both as lists of dicts with <code>_row_id</code>)</li>
+            <li>Agent's SDK layer separates: abstract &rarr; LLM, body &rarr; data buffer</li>
+            <li>Agent filters on abstract, passes matching abstract + body rows to consumer</li>
+            <li>Consumer merges by <code>_row_id</code>, processes data. No HTTP fetch needed.</li>
+        </ol>
+        <div class="code-block">
+            <pre><span class="comment">Agent                      Source Server</span>
+  |                              |
+  |  <span class="keyword">get_alerts</span>(mode="sync",     |
+  |    abstract_domains="..")    |
+  |─────────────────────────────▶|
+  |                              |
+  |  ◀─ abstract + body inline   |
+  |     (no resource_url)         |
+  |                              |
+  |  SDK: abstract → LLM        |
+  |       body → data buffer     |
+  |                              |
+  |  LLM: <span class="func">filter</span> by event       |
+  |                              |
+  |  pass abstract + body        |
+  |  to consumer (no fetch)      |</pre>
+        </div>
+
+        <h2>When to Use Each Mode</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Async Mode</th>
+                    <th>Sync Mode</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Body location</strong></td>
+                    <td>Cached on source server</td>
+                    <td>Returned inline to agent</td>
+                </tr>
+                <tr>
+                    <td><strong>Data plane</strong></td>
+                    <td>Direct HTTP between servers</td>
+                    <td>Through agent SDK (not LLM)</td>
+                </tr>
+                <tr>
+                    <td><strong>resource_url</strong></td>
+                    <td>Yes</td>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <td><strong>Server-to-server fetch</strong></td>
+                    <td>Yes (<code>POST /s2sp/data/</code>)</td>
+                    <td>No</td>
+                </tr>
+                <tr>
+                    <td><strong>Best for</strong></td>
+                    <td>Multi-server pipelines, large data</td>
+                    <td>Single-agent setups, small data</td>
+                </tr>
+                <tr>
+                    <td><strong>Body through agent process</strong></td>
+                    <td>No</td>
+                    <td>Yes (SDK layer, not LLM)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 id="data-plane-endpoint">Data Plane Endpoint</h2>
+        <p>
+            Every S2SP server exposes an HTTP endpoint for data-plane access:
+        </p>
+        <div class="code-block">
+            <pre><span class="keyword">POST</span> <span class="string">&lt;resource_url&gt;</span>
+Content-Type: application/json
+
+{
+  <span class="string">"row_ids"</span>: [0, 2, 5],         <span class="comment">// optional: select rows by _row_id</span>
+  <span class="string">"columns"</span>: [<span class="string">"description"</span>]   <span class="comment">// optional: select body columns</span>
+}
+
+<span class="comment">Response:</span>
+{
+  <span class="string">"body"</span>: [
+    {<span class="string">"_row_id"</span>: 0, <span class="string">"description"</span>: <span class="string">"North winds 25-35 mph..."</span>, ...},
+    {<span class="string">"_row_id"</span>: 2, <span class="string">"description"</span>: <span class="string">"Gusts up to 55 mph..."</span>, ...},
+    ...
+  ],
+  <span class="string">"total_rows"</span>: 3,
+  <span class="string">"columns_returned"</span>: [<span class="string">"_row_id"</span>, <span class="string">"description"</span>]
+}</pre>
+        </div>
+        <ul>
+            <li>If <code>row_ids</code> is omitted or empty: all cached rows are returned.</li>
+            <li>If <code>columns</code> is omitted or empty: all columns are returned.</li>
+            <li><code>_row_id</code> is always included in the response for reconciliation.</li>
+        </ul>
+
+        <h2 id="security">Security Model</h2>
+        <p>
+            S2SP uses 256-bit cryptographic <code>resource_url</code> values as capability
+            tokens. Each <code>resource_url</code> is single-use and expires after a 10-minute
+            TTL. In async mode, only parties who received the <code>resource_url</code> from the
+            agent (via the control plane) can fetch data from the source server's data plane.
+        </p>
+
+        <h3>Three-Way Trust</h3>
+        <ol>
+            <li><strong>The Agent</strong> decides which servers exchange data and which
+                <code>resource_url</code> to share with which consumer.</li>
+            <li><strong>The Source</strong> caches data and serves it only to requests
+                with a valid <code>resource_url</code>.</li>
+            <li><strong>The Consumer</strong> can only access data the agent explicitly
+                authorized by sharing the <code>resource_url</code>.</li>
+        </ol>
+
+        <h3>Token Expiry</h3>
+        <p>
+            Cached data and <code>resource_url</code> references are single-use and expire
+            after a 10-minute TTL. After expiry, the data is removed from the source
+            server's cache and the <code>resource_url</code> becomes invalid.
+        </p>
+
+        <h2>MCP Compatibility</h2>
+        <p>
+            Both resource and consumer tools are fully backward-compatible with MCP:
+        </p>
+
+        <h3>Resource Tool (<code>@s2sp_resource_tool()</code>)</h3>
+        <ul>
+            <li><strong>Without <code>abstract_domains</code></strong>: The tool behaves
+                exactly like a standard MCP tool — returns all data as
+                <code>list[dict]</code>. No caching, no <code>resource_url</code>,
+                no <code>_row_id</code>.</li>
+            <li><strong>With <code>abstract_domains</code></strong>: The S2SP layer
+                activates — filters columns, adds <code>_row_id</code>, caches body,
+                returns <code>resource_url</code>.</li>
+            <li>Agents that don't know about S2SP simply omit
+                <code>abstract_domains</code> and get normal MCP behavior.</li>
+        </ul>
+
+        <h3>Consumer Tool (<code>@s2sp_consumer_tool()</code>)</h3>
+        <ul>
+            <li>Appears as a standard MCP tool with four string parameters:
+                <code>abstract_data</code>, <code>resource_url</code>,
+                <code>body_data</code>, <code>column_mapping</code>.</li>
+            <li>Any MCP agent can call it — it's just a regular tool that accepts
+                JSON strings. No special S2SP client required.</li>
+            <li>The consumer server handles fetching and merging internally — the
+                agent just passes the parameters from the resource tool response.</li>
+        </ul>
+
+        <h3>General</h3>
+        <ul>
+            <li><strong>MCP Inspector</strong>: Every S2SP server works with
+                <code>mcp dev</code> for debugging. All tools, resources, and prompts
+                are visible and callable.</li>
+            <li><strong>No spec changes</strong>: S2SP uses standard MCP tool parameters
+                and JSON responses. No modifications to the MCP protocol are required.</li>
+            <li><strong>Claude Desktop / OpenAI / Anthropic</strong>: Tested with all
+                major MCP-compatible clients.</li>
+        </ul>
+    </main>
+</div>
+
+<footer class="footer">
+    <p>S2SP Protocol &mdash; An open extension for MCP.</p>
+</footer>
+
+</body>
+</html>

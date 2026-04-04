@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S2SP Protocol - Server-to-Server Data Transfer for MCP</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="index.html" class="nav-logo">
+            <span class="logo-icon">S</span>
+            S2SP Protocol
+        </a>
+        <ul class="nav-links">
+            <li><a href="index.html" class="active">Home</a></li>
+            <li><a href="docs/introduction.html">Docs</a></li>
+            <li><a href="docs/protocol.html">Protocol</a></li>
+            <li><a href="docs/sdk.html">SDK</a></li>
+            <li><a href="docs/demos.html">Demos</a></li>
+            <li><a href="docs/tutorial.html">Tutorial</a></li>
+        </ul>
+        <div class="nav-right">
+            <a href="https://github.com/s2sp-protocol/python-sdk" class="btn-github">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                GitHub
+            </a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-badge">Open Protocol for MCP</div>
+    <h1>Server-to-Server Data Transfer for MCP</h1>
+    <p class="subtitle">
+        S2SP enables direct data transfer between MCP servers without passing data through the agent's context window &mdash; saving tokens, reducing latency, and preserving agent control.
+    </p>
+    <div class="hero-buttons">
+        <a href="docs/introduction.html" class="btn-primary">Get Started</a>
+        <a href="docs/protocol.html" class="btn-secondary">Read the Spec</a>
+    </div>
+    <img src="images/hero_diagram.png" alt="S2SP Protocol Diagram" class="hero-diagram">
+</section>
+
+<!-- Stats (measured from weather alert demo: 8 alerts, 29 columns) -->
+<section class="stats-bar">
+    <div class="stats-inner">
+        <div class="stat-item">
+            <div class="stat-value" style="color: var(--green);">83–93%</div>
+            <div class="stat-label">Token savings (fewer abstract cols = more savings)</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" style="color: var(--blue);">7ms</div>
+            <div class="stat-label">Data-plane fetch (localhost)</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" style="color: var(--purple);">100%</div>
+            <div class="stat-label">MCP backward compatible</div>
+        </div>
+    </div>
+</section>
+
+<!-- What is S2SP -->
+<section class="section">
+    <h2 class="section-title">What is the S2SP Protocol?</h2>
+    <p class="section-subtitle">
+        S2SP (Server-to-Server Protocol) is an open protocol extension for MCP that enables direct data transfer between MCP servers, orchestrated by the AI agent.
+    </p>
+
+    <p style="color: var(--text-secondary); margin-bottom: 24px; max-width: 700px; line-height: 1.7;">
+        Think of S2SP like a <strong style="color: var(--text-primary);">direct pipeline between servers</strong>. Just as you wouldn't route a file transfer through your brain when copying between two USB drives, S2SP lets MCP servers exchange data directly &mdash; while the agent stays in control of <em>what</em> moves <em>where</em>.
+    </p>
+
+    <img src="images/how_it_works.png" alt="How S2S Works" class="how-image" style="max-width: 100%;">
+</section>
+
+<!-- Why S2SP -->
+<section class="section" style="padding-top: 0;">
+    <h2 class="section-title">Why does S2SP matter?</h2>
+    <p class="section-subtitle">
+        Current MCP forces all data through the agent. S2SP fixes this.
+    </p>
+
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(63,185,80,0.15); color: var(--green);">$</div>
+            <h3>Eliminate Token Waste</h3>
+            <p>A 50K-row CSV transfer consumes ~500K tokens through the agent. With S2SP: zero data tokens. Only small control messages pass through the agent.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(88,166,255,0.15); color: var(--blue);">&#9889;</div>
+            <h3>Sub-12ms Transfers</h3>
+            <p>Benchmarked 6&ndash;11ms mean latency for transfers up to 5MB. Data flows directly via HTTP, bypassing LLM inference entirely.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(188,140,255,0.15); color: var(--purple);">&#128274;</div>
+            <h3>Agent Stays in Control</h3>
+            <p>The agent initiates and orchestrates all transfers. No data moves without agent authorization. The agent controls which servers receive each <code>resource_url</code>.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(210,153,34,0.15); color: var(--orange);">&#128295;</div>
+            <h3>Zero New Dependencies</h3>
+            <p>Built on Starlette and httpx &mdash; already dependencies of MCP. S2SP adds nothing new to your dependency tree.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(248,81,73,0.15); color: var(--red);">&#128737;</div>
+            <h3>Secure by Design</h3>
+            <p>256-bit presigned URLs &mdash; single-use, 10-min TTL. Agent-delegated authorization.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon" style="background: rgba(63,185,80,0.15); color: var(--green);">&#8596;</div>
+            <h3>Fully Backward Compatible</h3>
+            <p>S2SP uses existing MCP mechanisms: <code>experimental</code> capabilities, standard tools, logging notifications. No spec changes needed.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Use Cases -->
+<section class="section" style="padding-top: 0;">
+    <h2 class="section-title">What can S2SP enable?</h2>
+    <div class="usecase-list">
+        <div class="usecase-item">
+            <div class="usecase-icon" style="background: rgba(63,185,80,0.15); color: var(--green);">&#128202;</div>
+            <div>
+                <h3>Database &rarr; Analytics Pipelines</h3>
+                <p>Transfer 50K-row query results directly from a database server to an analytics server. Agent says "analyze last month's sales" &mdash; data flows directly, results come back as a summary.</p>
+            </div>
+        </div>
+        <div class="usecase-item">
+            <div class="usecase-icon" style="background: rgba(88,166,255,0.15); color: var(--blue);">&#128196;</div>
+            <div>
+                <h3>File Processing Pipelines</h3>
+                <p>Send large files from a filesystem server to a processing server for OCR, text extraction, or image resizing &mdash; without base64-encoding megabytes into the agent's context.</p>
+            </div>
+        </div>
+        <div class="usecase-item">
+            <div class="usecase-icon" style="background: rgba(188,140,255,0.15); color: var(--purple);">&#128101;</div>
+            <div>
+                <h3>Cross-Service Data Sync</h3>
+                <p>Sync customer records from a CRM server to an email marketing server. Agent orchestrates the filter and sync; data moves directly between services.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Token Savings Chart -->
+<section class="section" style="padding-top: 0;">
+    <h2 class="section-title">Token Savings</h2>
+    <p class="section-subtitle">Measured on 8 NWS weather alerts (29 columns each). The agent picks which columns it needs — the rest go server-to-server.</p>
+    <img src="images/token_savings.png" alt="Token Savings Comparison" class="how-image">
+    <p style="color: var(--text-secondary); font-size: 13px; max-width: 700px; margin: 16px auto 0; text-align: center;">
+        Data-plane fetch latency (7ms) measured on localhost. For remote deployments,
+        latency depends on network distance between the two MCP servers, not the
+        protocol — S2SP adds no overhead beyond standard HTTP.
+    </p>
+</section>
+
+<!-- Quick Start -->
+<section class="section" style="padding-top: 0;">
+    <h2 class="section-title">Quick Start</h2>
+    <p class="section-subtitle">Get up and running in minutes.</p>
+
+    <div class="install-block">
+        <span class="dollar">$</span>
+        <code>pip install mcp-s2sp</code>
+    </div>
+
+    <h3 style="margin-top: 32px; margin-bottom: 16px; font-size: 16px; font-weight: 600;">Source Server (exposes an S2SP tool)</h3>
+    <div class="code-block"><pre><span class="keyword">from</span> mcp_s2sp <span class="keyword">import</span> S2SPServer
+
+server = S2SPServer(<span class="string">"weather-server"</span>)
+
+<span class="decorator">@server.s2sp_resource_tool()</span>
+<span class="keyword">async def</span> <span class="func">get_alerts</span>(area: <span class="func">str</span>) -> list[dict]:
+    <span class="keyword">return await</span> <span class="func">fetch_from_nws</span>(area)</pre></div>
+
+    <h3 style="margin-top: 24px; margin-bottom: 16px; font-size: 16px; font-weight: 600;">Agent Orchestration (control plane + data plane)</h3>
+    <div class="code-block"><pre><span class="comment"># 1. Control plane: agent gets only selected fields + _row_id</span>
+result = <span class="func">get_alerts</span>(area=<span class="string">"CA"</span>, abstract_domains=<span class="string">"event,severity,headline"</span>)
+<span class="comment"># result.abstract = [{_row_id: 0, event: "Wind Advisory", ...}, ...]</span>
+<span class="comment"># result.resource_url = "http://..."</span>
+
+<span class="comment"># 2. Agent filters on abstract, picks rows it cares about</span>
+selected = [row <span class="keyword">for</span> row <span class="keyword">in</span> result.abstract <span class="keyword">if</span> <span class="string">"Wind"</span> <span class="keyword">in</span> row[<span class="string">"event"</span>]]
+
+<span class="comment"># 3. Pass abstract rows to consumer — it fetches body from data plane</span>
+<span class="func">draw_chart</span>(abstract_data=<span class="func">json.dumps</span>(selected),
+           resource_url=<span class="string">"http://..."</span>)</pre></div>
+</section>
+
+<!-- Start Building -->
+<section class="section" style="padding-top: 0;">
+    <h2 class="section-title">Start Building</h2>
+    <div class="card-links">
+        <a href="docs/introduction.html" class="card-link">
+            <div class="card-link-icon">&#128214;</div>
+            <h3>Introduction</h3>
+            <p>Learn what S2S is, why it exists, and the core concepts behind the protocol.</p>
+        </a>
+        <a href="docs/protocol.html" class="card-link">
+            <div class="card-link-icon">&#128209;</div>
+            <h3>Protocol Specification</h3>
+            <p>Message types, state machine, transfer lifecycle, and security model.</p>
+        </a>
+        <a href="docs/sdk.html" class="card-link">
+            <div class="card-link-icon">&#128187;</div>
+            <h3>Python SDK</h3>
+            <p>Build S2S-capable MCP servers with the mcp_s2sp Python package.</p>
+        </a>
+        <a href="docs/demos.html" class="card-link">
+            <div class="card-link-icon">&#127919;</div>
+            <h3>Demos &amp; Examples</h3>
+            <p>Three runnable demos: DB-to-Analytics, File Processing, CRM Sync.</p>
+        </a>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+    <p>S2SP Protocol &mdash; An open extension for the <a href="https://modelcontextprotocol.io">Model Context Protocol</a></p>
+    <p style="margin-top: 8px;">Built with the MCP ecosystem.</p>
+</footer>
+
+</body>
+</html>

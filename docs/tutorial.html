@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial - S2SP Protocol</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .video-container {
+            margin: 24px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: #000;
+        }
+        .video-container video {
+            width: 100%;
+            display: block;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--green);
+            color: #000;
+            font-weight: 700;
+            font-size: 14px;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .step-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .config-block {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+        }
+        .config-block h4 {
+            margin-top: 0;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="../index.html" class="nav-logo">
+            <span class="logo-icon">S</span>
+            S2SP Protocol
+        </a>
+        <ul class="nav-links">
+            <li><a href="../index.html">Home</a></li>
+            <li><a href="introduction.html">Docs</a></li>
+            <li><a href="protocol.html">Protocol</a></li>
+            <li><a href="sdk.html">SDK</a></li>
+            <li><a href="demos.html">Demos</a></li>
+            <li><a href="tutorial.html" class="active">Tutorial</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="doc-layout">
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <h4>Getting Started</h4>
+            <a href="introduction.html">Introduction</a>
+            <a href="introduction.html#quick-start">Quick Start</a>
+            <a href="tutorial.html" class="active">Tutorial</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Learn</h4>
+            <a href="protocol.html">Protocol Design</a>
+            <a href="sdk.html">Python SDK</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Examples</h4>
+            <a href="demos.html">Demos</a>
+        </div>
+    </aside>
+
+    <main class="doc-content">
+        <h1>Tutorial: Weather Agent with Claude Desktop</h1>
+        <p>
+            This tutorial shows how to connect two S2SP-enabled MCP servers to
+            Claude Desktop and use natural language to generate weather alert
+            statistics &mdash; with the S2SP protocol automatically splitting data
+            between the control plane (what Claude sees) and the data plane
+            (what flows directly between servers).
+        </p>
+
+        <h2>Demo Video</h2>
+        <p>
+            Watch Claude orchestrate the weather server and stats server in real time.
+            Claude decides which fields to request as abstract domains, filters the
+            alerts, and tells the stats server to generate a chart &mdash; all from a
+            single natural language prompt.
+        </p>
+        <div class="video-container">
+            <video controls preload="metadata">
+                <source src="../images/demo_video.mov" type="video/quicktime">
+                <source src="../images/demo_video.mov" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <h2>Prerequisites</h2>
+        <ul>
+            <li><a href="https://claude.ai/download">Claude Desktop</a> installed</li>
+            <li>Python 3.10+ with the project's virtual environment set up</li>
+            <li>The S2SP repository cloned and installed:
+                <div class="code-block">
+                    <pre><span class="string">$</span> git clone &lt;repo-url&gt;
+<span class="string">$</span> cd python-sdk
+<span class="string">$</span> pip install -e ".[demos]"</pre>
+                </div>
+            </li>
+        </ul>
+
+        <h2>Setup</h2>
+
+        <div class="step-header">
+            <span class="step-number">1</span>
+            <h3 style="margin:0">Find your Python path</h3>
+        </div>
+        <p>You need the absolute path to the project's Python interpreter:</p>
+        <div class="code-block">
+            <pre><span class="string">$</span> cd /path/to/python-sdk
+<span class="string">$</span> echo "$(pwd)/.venv/bin/python"
+<span class="comment"># Example: /path/to/python-sdk/.venv/bin/python</span></pre>
+        </div>
+
+        <div class="step-header">
+            <span class="step-number">2</span>
+            <h3 style="margin:0">Configure Claude Desktop</h3>
+        </div>
+        <p>
+            Open the Claude Desktop configuration file:
+        </p>
+        <div class="code-block">
+            <pre><span class="comment"># macOS</span>
+<span class="string">$</span> open ~/Library/Application\ Support/Claude/claude_desktop_config.json
+
+<span class="comment"># Or create it if it doesn't exist</span>
+<span class="string">$</span> mkdir -p ~/Library/Application\ Support/Claude
+<span class="string">$</span> nano ~/Library/Application\ Support/Claude/claude_desktop_config.json</pre>
+        </div>
+        <p>
+            Add the two MCP servers. Replace the Python path with your own:
+        </p>
+        <div class="config-block">
+            <h4>claude_desktop_config.json</h4>
+            <div class="code-block" style="margin:0">
+                <pre>{
+  <span class="string">"mcpServers"</span>: {
+    <span class="string">"weather"</span>: {
+      <span class="string">"command"</span>: <span class="string">"/path/to/python-sdk/.venv/bin/python"</span>,
+      <span class="string">"args"</span>: [<span class="string">"/path/to/python-sdk/demos/weather_agent/weather_server.py"</span>]
+    },
+    <span class="string">"stats"</span>: {
+      <span class="string">"command"</span>: <span class="string">"/path/to/python-sdk/.venv/bin/python"</span>,
+      <span class="string">"args"</span>: [<span class="string">"/path/to/python-sdk/demos/weather_agent/stats_server.py"</span>]
+    }
+  }
+}</pre>
+            </div>
+        </div>
+
+        <div class="step-header">
+            <span class="step-number">3</span>
+            <h3 style="margin:0">Restart Claude Desktop</h3>
+        </div>
+        <p>
+            Quit and reopen Claude Desktop. You should see the two servers in the
+            tools panel (click the hammer icon):
+        </p>
+        <ul>
+            <li><strong>weather</strong> &mdash; <code>get_alerts</code>, <code>get_forecast</code></li>
+            <li><strong>stats</strong> &mdash; <code>draw_chart</code></li>
+        </ul>
+
+        <h2>Usage</h2>
+
+        <div class="step-header">
+            <span class="step-number">4</span>
+            <h3 style="margin:0">Ask Claude in natural language</h3>
+        </div>
+        <p>Just ask what you want. Claude will figure out which fields to request,
+            how to filter, and when to call the stats server:</p>
+        <div class="code-block">
+            <pre><span class="comment"># Try these prompts:</span>
+
+<span class="string">"Can you get the weather alert statistics about the wind in California?"</span>
+
+<span class="string">"Show me severe weather alerts in Texas and generate a chart"</span>
+
+<span class="string">"What urgent alerts are active in Florida? Draw statistics."</span>
+
+<span class="string">"Get all weather alerts for New York and chart them by event type"</span></pre>
+        </div>
+
+        <h2>What Happens Behind the Scenes</h2>
+
+        <p>When you ask <em>"Get wind alert statistics for California"</em>, Claude:</p>
+
+        <div class="step-header">
+            <span class="step-number">1</span>
+            <h3 style="margin:0">Chooses abstract domains</h3>
+        </div>
+        <p>
+            Claude reads your prompt and decides it needs the <code>event</code> field
+            to filter for wind alerts, plus <code>severity</code> for context. It calls:
+        </p>
+        <div class="code-block">
+            <pre>get_alerts(area=<span class="string">"CA"</span>, abstract_domains=<span class="string">"event,severity"</span>)</pre>
+        </div>
+        <p>
+            The weather server returns only those 2 fields + <code>_row_id</code> per alert
+            (~600 tokens), plus a <code>resource_url</code>
+            pointing to the full cached data (~9,000 tokens, not sent to Claude).
+        </p>
+
+        <div class="step-header">
+            <span class="step-number">2</span>
+            <h3 style="margin:0">Filters on the control plane</h3>
+        </div>
+        <p>
+            Claude examines the abstract rows and selects those where
+            <code>event</code> contains "Wind":
+        </p>
+        <div class="code-block">
+            <pre><span class="comment"># Claude sees (control plane):</span>
+[{<span class="string">"_row_id"</span>: 0, <span class="string">"event"</span>: <span class="string">"Wind Advisory"</span>, <span class="string">"severity"</span>: <span class="string">"Moderate"</span>},
+ {<span class="string">"_row_id"</span>: 1, <span class="string">"event"</span>: <span class="string">"Flood Watch"</span>, <span class="string">"severity"</span>: <span class="string">"Minor"</span>},     <span class="comment"># skipped</span>
+ {<span class="string">"_row_id"</span>: 2, <span class="string">"event"</span>: <span class="string">"High Wind Warning"</span>, <span class="string">"severity"</span>: <span class="string">"Severe"</span>},
+ ...]</pre>
+        </div>
+
+        <div class="step-header">
+            <span class="step-number">3</span>
+            <h3 style="margin:0">Calls draw_chart with resource reference</h3>
+        </div>
+        <p>
+            Claude passes the filtered abstract rows and the resource reference to
+            the stats server:
+        </p>
+        <div class="code-block">
+            <pre>draw_chart(
+  abstract_data=<span class="string">'[{"_row_id":0,"event":"Wind Advisory","severity":"Moderate"}, ...]'</span>,
+  resource_url=<span class="string">"http://127.0.0.1:54321/s2sp/data/dK7x_..."</span>
+)</pre>
+        </div>
+
+        <div class="step-header">
+            <span class="step-number">4</span>
+            <h3 style="margin:0">Stats server fetches body data (data plane)</h3>
+        </div>
+        <p>
+            The stats server connects <strong>directly</strong> to the weather server's
+            data plane &mdash; <code>POST /s2sp/data/dK7x_...45</code> &mdash; and gets the
+            full alert data (description, instruction, sender, parameters, etc.) for the
+            selected rows. Claude never sees this data.
+        </p>
+
+        <div class="step-header">
+            <span class="step-number">5</span>
+            <h3 style="margin:0">Chart displayed inline</h3>
+        </div>
+        <p>
+            The stats server generates an 8-panel chart and returns it as an image.
+            Claude Desktop displays it directly in the conversation alongside a
+            text summary of the statistics.
+        </p>
+
+        <h2>Debugging with MCP Inspector</h2>
+        <p>
+            You can also debug each server independently using the MCP Inspector:
+        </p>
+        <div class="code-block">
+            <pre><span class="comment"># Debug weather server</span>
+<span class="string">$</span> mcp dev demos/weather_agent/weather_server.py
+
+<span class="comment"># Debug stats server (different port)</span>
+<span class="string">$</span> CLIENT_PORT=6280 SERVER_PORT=6281 mcp dev demos/weather_agent/stats_server.py</pre>
+        </div>
+        <p>
+            The Inspector lets you call each tool manually, inspect the
+            <code>abstract_domains</code> parameter, view <code>resource_url</code> values,
+            and check the data-plane cache via the <code>weather://cache</code> resource.
+        </p>
+
+        <h2>Scripted Demos</h2>
+        <p>
+            If you prefer running without Claude Desktop, two scripted demos are
+            included:
+        </p>
+        <div class="code-block">
+            <pre><span class="comment"># Async mode — body cached on server, fetched via data plane</span>
+<span class="string">$</span> python demos/weather_agent/run_async.py --area CA --event Wind
+
+<span class="comment"># Sync mode — body returned inline, no server-to-server fetch</span>
+<span class="string">$</span> python demos/weather_agent/run_sync.py --area CA --event Wind</pre>
+        </div>
+    </main>
+</div>
+
+<footer class="footer">
+    <p>S2SP Protocol &mdash; An open extension for MCP.</p>
+</footer>
+
+</body>
+</html>
