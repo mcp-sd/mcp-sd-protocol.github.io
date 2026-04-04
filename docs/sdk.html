@@ -11,7 +11,7 @@
 <nav class="nav">
     <div class="nav-inner">
         <a href="../index.html" class="nav-logo">
-            <span class="logo-icon">S</span>
+            <img src="../images/s2sp_icon.png" class="logo-icon" alt="S2SP">
             S2SP Protocol
         </a>
         <ul class="nav-links">
@@ -19,33 +19,31 @@
             <li><a href="introduction.html">Docs</a></li>
             <li><a href="protocol.html">Protocol</a></li>
             <li><a href="sdk.html" class="active">SDK</a></li>
-            <li><a href="demos.html">Demos</a></li>
-            <li><a href="tutorial.html">Tutorial</a></li>
+            <li><a href="demos.html">Examples</a>
+            </li>
         </ul>
     </div>
 </nav>
 
 <div class="doc-layout">
-    <aside class="sidebar">
+        <aside class="sidebar">
         <div class="sidebar-section">
             <h4>Getting Started</h4>
             <a href="introduction.html">Introduction</a>
-            <a href="introduction.html#quick-start">Quick Start</a>
+            <a href="introduction.html#quick-start" class="sub">Quick Start</a>
         </div>
         <div class="sidebar-section">
             <h4>Learn</h4>
             <a href="protocol.html">Protocol Design</a>
-            <a href="protocol.html#architecture">Architecture</a>
-            <a href="protocol.html#security">Security</a>
         </div>
         <div class="sidebar-section">
             <h4>Develop</h4>
-            <a href="sdk.html" class="active">Python SDK</a>
-            <a href="sdk.html#api-reference">API Reference</a>
+            <a href="sdk.html">Python SDK</a>
         </div>
         <div class="sidebar-section">
             <h4>Examples</h4>
-            <a href="demos.html">Demos</a>
+            <a href="demos.html">Agent Development with S2SP</a>
+            <a href="tutorial.html">Use S2SP Servers in Claude</a>
         </div>
     </aside>
 
@@ -93,7 +91,7 @@
                 </tr>
                 <tr>
                     <td><code>direct_channel.py</code></td>
-                    <td>The <code>DirectChannel</code> class. Provides the static method <code>fetch_data(resource_url, row_ids=None, columns=None, column_mapping=None)</code> for receiver servers to fetch specific rows from a source server's data plane.</td>
+                    <td>The <code>DirectChannel</code> class. Provides the static method <code>fetch_data(resource_url, row_ids=None, columns=None, column_mapping=None)</code> for receiver servers to fetch specific rows from a resource server's data plane.</td>
                 </tr>
                 <tr>
                     <td><code>errors.py</code></td>

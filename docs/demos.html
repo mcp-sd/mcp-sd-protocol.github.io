@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Demos - S2SP Protocol</title>
+    <title>Agent Development - S2SP Protocol</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
 <nav class="nav">
     <div class="nav-inner">
         <a href="../index.html" class="nav-logo">
-            <span class="logo-icon">S</span>
+            <img src="../images/s2sp_icon.png" class="logo-icon" alt="S2SP">
             S2SP Protocol
         </a>
         <ul class="nav-links">
@@ -19,8 +19,8 @@
             <li><a href="introduction.html">Docs</a></li>
             <li><a href="protocol.html">Protocol</a></li>
             <li><a href="sdk.html">SDK</a></li>
-            <li><a href="demos.html">Demos</a></li>
-            <li><a href="tutorial.html">Tutorial</a></li>
+            <li><a href="demos.html">Examples</a>
+            </li>
         </ul>
     </div>
 </nav>
@@ -30,37 +30,36 @@
         <div class="sidebar-section">
             <h4>Getting Started</h4>
             <a href="introduction.html">Introduction</a>
-            <a href="introduction.html#quick-start">Quick Start</a>
+            <a href="introduction.html#quick-start" class="sub">Quick Start</a>
         </div>
         <div class="sidebar-section">
             <h4>Learn</h4>
             <a href="protocol.html">Protocol Design</a>
-            <a href="protocol.html#architecture">Architecture</a>
-            <a href="protocol.html#security">Security</a>
         </div>
         <div class="sidebar-section">
             <h4>Develop</h4>
             <a href="sdk.html">Python SDK</a>
-            <a href="sdk.html#api-reference">API Reference</a>
         </div>
         <div class="sidebar-section">
             <h4>Examples</h4>
-            <a href="demos.html" class="active">Demos</a>
+            <a href="demos.html" class="active">Agent Development with S2SP</a>
+            <a href="tutorial.html">Use S2SP Servers in Claude</a>
         </div>
     </aside>
 
     <main class="doc-content">
-        <h1>Weather Agent Demo</h1>
+        <h1>Agent Development with S2SP Servers</h1>
         <p>
-            This demo uses real NWS (National Weather Service) data to demonstrate the
-            S2SP protocol. A Weather Server provides alerts with ~30 columns per row.
-            The agent chooses which columns to see (abstract domains). A Stats Server
-            generates charts from the full data, fetched directly on the data plane.
+            This guide shows how to build an agent that uses two S2SP servers:
+            a <strong>resource server</strong> (<code>@s2sp_resource_tool()</code>) that
+            provides weather alerts, and a <strong>consumer server</strong>
+            (<code>@s2sp_consumer_tool()</code>) that generates charts from the data.
         </p>
         <p>
-            The demo includes <strong>two modes</strong> (async and sync), an
-            <strong>interactive Claude agent</strong>, and full
-            <strong>MCP Inspector</strong> support.
+            The example uses real NWS (National Weather Service) data with ~30 columns
+            per alert. It demonstrates both <strong>async</strong> and <strong>sync</strong>
+            modes, and works with <strong>Claude Desktop</strong>, <strong>OpenAI</strong>,
+            and <strong>MCP Inspector</strong>.
         </p>
 
         <h2>Architecture</h2>
@@ -80,7 +79,7 @@
             </pre>
         </div>
 
-        <h2>Weather Server (Source)</h2>
+        <h2>Weather Server (Resource)</h2>
         <p>
             A standard MCP server with <code>@server.s2sp_resource_tool()</code>. Returns all
             ~30 NWS alert fields. The decorator adds <code>abstract_domains</code> and
@@ -104,37 +103,24 @@ server.<span class="func">run</span>()  <span class="comment"># mcp dev demos/we
 
         <h2>Stats Server (Consumer)</h2>
         <p>
-            Receives the abstract rows the agent selected, plus
-            <code>resource_url</code> for async mode or
-            <code>body_data</code> for sync mode. Merges abstract + body by
-            <code>_row_id</code>, generates an 8-panel chart.
+            Uses <code>@server.s2sp_consumer_tool()</code>. The decorator handles
+            all S2SP plumbing &mdash; parsing, fetching body, remapping columns,
+            merging by <code>_row_id</code>. Your function just receives merged rows.
         </p>
         <div class="code-block">
             <pre><span class="keyword">from</span> mcp_s2sp <span class="keyword">import</span> S2SPServer
-<span class="keyword">from</span> mcp_s2sp.direct_channel <span class="keyword">import</span> DirectChannel
 
 server = <span class="func">S2SPServer</span>(<span class="string">"stats-server"</span>)
 
 <span class="decorator">@server.s2sp_consumer_tool()</span>
-<span class="keyword">async def</span> <span class="func">draw_chart</span>(
-    abstract_data: str,
-    resource_url: str = <span class="string">""</span>,
-    body_data: str = <span class="string">""</span>,
-) -> str:
-    abstract_rows = json.<span class="func">loads</span>(abstract_data)
-    row_ids = [r[<span class="string">"_row_id"</span>] <span class="keyword">for</span> r <span class="keyword">in</span> abstract_rows]
+<span class="keyword">async def</span> <span class="func">draw_chart</span>(rows: list[dict]) -> str:
+    <span class="string">"""Receives merged abstract + body rows."""</span>
+    <span class="keyword">return</span> <span class="func">generate_chart</span>(rows)
 
-    <span class="keyword">if</span> resource_url:
-        <span class="comment"># Async mode: fetch body from source server's data plane</span>
-        body_rows = <span class="keyword">await</span> DirectChannel.<span class="func">fetch_data</span>(
-            resource_url, row_ids)
-    <span class="keyword">elif</span> body_data:
-        <span class="comment"># Sync mode: body passed inline by agent</span>
-        body_rows = json.<span class="func">loads</span>(body_data)
+server.<span class="func">run</span>()
 
-    <span class="comment"># Merge abstract + body by _row_id</span>
-    merged = <span class="func">merge_by_row_id</span>(abstract_rows, body_rows)
-    <span class="keyword">return</span> <span class="func">generate_chart</span>(merged)</pre>
+<span class="comment"># The decorator adds: abstract_data, resource_url, body_data, column_mapping</span>
+<span class="comment"># Agent calls: draw_chart(abstract_data='[...]', resource_url='http://...')</span></pre>
         </div>
 
         <h2>Async Mode Demo</h2>
@@ -206,20 +192,11 @@ draw_chart(
             <pre><span class="string">$</span> python demos/weather_agent/run_sync.py --area CA --event Wind</pre>
         </div>
 
-        <h2>Interactive Claude Agent</h2>
+        <h2>Running the Servers</h2>
         <p>
-            A Claude-powered agent that orchestrates the full flow through natural
-            language conversation:
+            To use these servers with Claude Desktop or an interactive agent, see
+            <a href="tutorial.html">Use S2SP Servers in Claude</a>.
         </p>
-        <div class="code-block">
-            <pre><span class="string">$</span> export ANTHROPIC_API_KEY=sk-ant-...
-<span class="string">$</span> python demos/weather_agent/agent_async.py  <span class="comment"># or agent_sync.py</span>
-
-<span class="comment"># Then ask:</span>
-<span class="comment">#   "Show me weather alerts for California"</span>
-<span class="comment">#   "Filter for wind advisories"</span>
-<span class="comment">#   "Generate a chart of the severe alerts"</span></pre>
-        </div>
 
         <h2>MCP Inspector</h2>
         <p>

@@ -197,8 +197,8 @@ def architecture():
     # Agent
     draw_box(ax, 7, 1.5, 3.5, 1.3, "Agent (LLM)", BLUE, "Control Plane")
 
-    # Source server
-    draw_box(ax, 2.5, -1.5, 3.5, 2.0, "Source Server", GREEN, "@s2sp_tool()")
+    # Resource server
+    draw_box(ax, 2.5, -1.5, 3.5, 2.0, "Resource Server", GREEN, "@s2sp_tool()")
 
     # Consumer server
     draw_box(ax, 11.5, -1.5, 3.5, 2.0, "Consumer Server", ORANGE, "draw_chart()")

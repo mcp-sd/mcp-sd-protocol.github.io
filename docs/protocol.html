@@ -11,7 +11,7 @@
 <nav class="nav">
     <div class="nav-inner">
         <a href="../index.html" class="nav-logo">
-            <span class="logo-icon">S</span>
+            <img src="../images/s2sp_icon.png" class="logo-icon" alt="S2SP">
             S2SP Protocol
         </a>
         <ul class="nav-links">
@@ -19,8 +19,8 @@
             <li><a href="introduction.html">Docs</a></li>
             <li><a href="protocol.html" class="active">Protocol</a></li>
             <li><a href="sdk.html">SDK</a></li>
-            <li><a href="demos.html">Demos</a></li>
-            <li><a href="tutorial.html">Tutorial</a></li>
+            <li><a href="demos.html">Examples</a>
+            </li>
         </ul>
     </div>
 </nav>
@@ -35,12 +35,12 @@
         <div class="sidebar-section">
             <h4>Learn</h4>
             <a href="protocol.html" class="active">Protocol Design</a>
-            <a href="#data-model">Data Model</a>
-            <a href="#two-planes">Two Planes</a>
-            <a href="#async-mode">Async Mode</a>
-            <a href="#sync-mode">Sync Mode</a>
-            <a href="#data-plane-endpoint">Data Plane Endpoint</a>
-            <a href="#security">Security</a>
+            <a href="#data-model" class="sub">Data Model</a>
+            <a href="#two-planes" class="sub">Two Planes</a>
+            <a href="#async-mode" class="sub">Async Mode</a>
+            <a href="#sync-mode" class="sub">Sync Mode</a>
+            <a href="#data-plane-endpoint" class="sub">Data Plane Endpoint</a>
+            <a href="#security" class="sub">Security</a>
         </div>
         <div class="sidebar-section">
             <h4>Develop</h4>
@@ -48,7 +48,8 @@
         </div>
         <div class="sidebar-section">
             <h4>Examples</h4>
-            <a href="demos.html">Demos</a>
+            <a href="demos.html">Agent Development with S2SP</a>
+            <a href="tutorial.html">Use S2SP Servers in Claude</a>
         </div>
     </aside>
 
@@ -73,7 +74,7 @@
             <li><strong>Abstract domains</strong> (control plane): Columns the LLM needs for
                 reasoning and decision-making. These are returned to the agent.</li>
             <li><strong>Body domains</strong> (data plane): Remaining columns. These bypass
-                the LLM &mdash; either cached on the source server (async) or passed through
+                the LLM &mdash; either cached on the resource server (async) or passed through
                 the agent's SDK layer (sync) without entering the LLM context.</li>
         </ul>
         <p>
@@ -115,7 +116,7 @@ get_alerts(area=<span class="string">"CA"</span>, abstract_domains=<span class="
         </p>
         <ul>
             <li><strong>Async mode</strong> &mdash; Direct HTTP between servers. Body data is
-                cached on the source server. A consumer server fetches it via
+                cached on the resource server. A consumer server fetches it via
                 a <code>POST</code> request to the presigned <code>resource_url</code>. The agent has no visibility into
                 this channel. Data flows server-to-server only.</li>
             <li><strong>Sync mode</strong> &mdash; Data channel through the agent. Body data
@@ -126,19 +127,19 @@ get_alerts(area=<span class="string">"CA"</span>, abstract_domains=<span class="
 
         <h2 id="async-mode">Async Mode (default)</h2>
         <p>
-            Body data is cached on the source server. The response includes
+            Body data is cached on the resource server. The response includes
             <code>resource_url</code> but no body.
         </p>
         <ol>
             <li>Agent calls <code>get_alerts(area="CA", abstract_domains="event,severity", mode="async")</code></li>
-            <li>Source server fetches all data, assigns <code>_row_id</code> to each row, caches full data</li>
+            <li>Resource server fetches all data, assigns <code>_row_id</code> to each row, caches full data</li>
             <li>Returns abstract rows + <code>resource_url</code> (no body)</li>
             <li>Agent filters on abstract, selects rows, passes abstract + resource ref to consumer</li>
-            <li>Consumer calls <code>POST /s2sp/data/{resource_url}</code> on source server with <code>{"row_ids": [...]}</code></li>
+            <li>Consumer calls <code>POST /s2sp/data/{resource_url}</code> on resource server with <code>{"row_ids": [...]}</code></li>
             <li>Source returns full data for selected rows. Agent never saw it.</li>
         </ol>
         <div class="code-block">
-            <pre><span class="comment">Agent                 Source Server              Consumer Server</span>
+            <pre><span class="comment">Agent                 Resource Server              Consumer Server</span>
   |                         |                          |
   |  <span class="keyword">get_alerts</span>(abstract_   |                          |
   |    domains="event,..")  |                          |
@@ -176,7 +177,7 @@ get_alerts(area=<span class="string">"CA"</span>, abstract_domains=<span class="
             <li>Consumer merges by <code>_row_id</code>, processes data. No HTTP fetch needed.</li>
         </ol>
         <div class="code-block">
-            <pre><span class="comment">Agent                      Source Server</span>
+            <pre><span class="comment">Agent                      Resource Server</span>
   |                              |
   |  <span class="keyword">get_alerts</span>(mode="sync",     |
   |    abstract_domains="..")    |
@@ -206,7 +207,7 @@ get_alerts(area=<span class="string">"CA"</span>, abstract_domains=<span class="
             <tbody>
                 <tr>
                     <td><strong>Body location</strong></td>
-                    <td>Cached on source server</td>
+                    <td>Cached on resource server</td>
                     <td>Returned inline to agent</td>
                 </tr>
                 <tr>
@@ -272,7 +273,7 @@ Content-Type: application/json
             S2SP uses 256-bit cryptographic <code>resource_url</code> values as capability
             tokens. Each <code>resource_url</code> is single-use and expires after a 10-minute
             TTL. In async mode, only parties who received the <code>resource_url</code> from the
-            agent (via the control plane) can fetch data from the source server's data plane.
+            agent (via the control plane) can fetch data from the resource server's data plane.
         </p>
 
         <h3>Three-Way Trust</h3>
@@ -288,7 +289,7 @@ Content-Type: application/json
         <h3>Token Expiry</h3>
         <p>
             Cached data and <code>resource_url</code> references are single-use and expire
-            after a 10-minute TTL. After expiry, the data is removed from the source
+            after a 10-minute TTL. After expiry, the data is removed from the resource server
             server's cache and the <code>resource_url</code> becomes invalid.
         </p>
 

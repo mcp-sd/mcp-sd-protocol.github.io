@@ -11,7 +11,7 @@
 <nav class="nav">
     <div class="nav-inner">
         <a href="../index.html" class="nav-logo">
-            <span class="logo-icon">S</span>
+            <img src="../images/s2sp_icon.png" class="logo-icon" alt="S2SP">
             S2SP Protocol
         </a>
         <ul class="nav-links">
@@ -19,33 +19,31 @@
             <li><a href="introduction.html" class="active">Docs</a></li>
             <li><a href="protocol.html">Protocol</a></li>
             <li><a href="sdk.html">SDK</a></li>
-            <li><a href="demos.html">Demos</a></li>
-            <li><a href="tutorial.html">Tutorial</a></li>
+            <li><a href="demos.html">Examples</a>
+            </li>
         </ul>
     </div>
 </nav>
 
 <div class="doc-layout">
-    <aside class="sidebar">
+        <aside class="sidebar">
         <div class="sidebar-section">
             <h4>Getting Started</h4>
-            <a href="introduction.html" class="active">Introduction</a>
-            <a href="introduction.html#quick-start">Quick Start</a>
+            <a href="introduction.html">Introduction</a>
+            <a href="introduction.html#quick-start" class="sub">Quick Start</a>
         </div>
         <div class="sidebar-section">
             <h4>Learn</h4>
             <a href="protocol.html">Protocol Design</a>
-            <a href="protocol.html#architecture">Architecture</a>
-            <a href="protocol.html#security">Security</a>
         </div>
         <div class="sidebar-section">
             <h4>Develop</h4>
             <a href="sdk.html">Python SDK</a>
-            <a href="sdk.html#api-reference">API Reference</a>
         </div>
         <div class="sidebar-section">
             <h4>Examples</h4>
-            <a href="demos.html">Demos</a>
+            <a href="demos.html">Agent Development with S2SP</a>
+            <a href="tutorial.html">Use S2SP Servers in Claude</a>
         </div>
     </aside>
 
@@ -114,7 +112,7 @@
         <p>
             The agent stays in the loop for <em>reasoning and orchestration</em> &mdash; it sees only the
             abstract fields it needs to make decisions. When another server needs the full data, it fetches
-            it directly from the source server's data plane endpoint, bypassing the agent entirely.
+            it directly from the resource server's data plane endpoint, bypassing the agent entirely.
         </p>
 
         <h2>Key Concepts</h2>
@@ -148,7 +146,7 @@
             It operates in two modes:
         </p>
         <ul>
-            <li><strong>Async mode</strong>: Body data is cached on the source server. A downstream
+            <li><strong>Async mode</strong>: Body data is cached on the resource server. A downstream
                 server (e.g., Stats Server) fetches it directly via
                 <code>POST &lt;resource_url&gt;</code> with
                 <code>{"row_ids": [...], "columns": [...]}</code>.
@@ -241,7 +239,7 @@ server.<span class="func">run</span>()</pre>
         </div>
         <p>
             The agent filters the abstract results, then tells another server to fetch the full data
-            directly from the source:
+            directly from the resource server:
         </p>
         <div class="code-block">
             <pre><span class="comment"># Agent filters abstract rows, passes them + resource ref to Stats Server:</span>
