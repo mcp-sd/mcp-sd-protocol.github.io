@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Development - S2SP Protocol</title>
+    <title>Agent Development - MCP-SD / S2SP</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -11,15 +11,16 @@
 <nav class="nav">
     <div class="nav-inner">
         <a href="../index.html" class="nav-logo">
-            <img src="../images/s2sp_icon.png" class="logo-icon" alt="S2SP">
-            S2SP Protocol
+            <img src="../images/s2sp_icon.png" class="logo-icon" alt="MCP-SD">
+            MCP-SD <span class="nav-sub">/ S2SP</span>
         </a>
         <ul class="nav-links">
             <li><a href="../index.html">Home</a></li>
             <li><a href="introduction.html">Docs</a></li>
+            <li><a href="when-to-use.html">When to Use</a></li>
             <li><a href="protocol.html">Protocol</a></li>
             <li><a href="sdk.html">SDK</a></li>
-            <li><a href="demos.html">Examples</a>
+            <li><a href="demos.html">Demos</a>
             </li>
         </ul>
     </div>
@@ -51,22 +52,22 @@
         <h1>Agent Development with S2SP Servers</h1>
         <p>
             This guide shows how to build an agent that uses two S2SP servers:
-            a <strong>resource server</strong> (<code>@s2sp_resource_tool()</code>) that
+            a <strong>resource server</strong> (<code>@sd_resource_tool()</code>) that
             provides weather alerts, and a <strong>consumer server</strong>
-            (<code>@s2sp_consumer_tool()</code>) that generates charts from the data.
+            (<code>@sd_consumer_tool()</code>) that generates charts from the data.
         </p>
         <p>
             The example uses real NWS (National Weather Service) data with ~30 columns
             per alert. It demonstrates both <strong>async</strong> and <strong>sync</strong>
-            modes, and works with <strong>Claude Desktop</strong>, <strong>OpenAI</strong>,
-            and <strong>MCP Inspector</strong>.
+            modes. The repository includes interactive agent scripts for Anthropic
+            and OpenAI chat providers, plus MCP Inspector commands for debugging.
         </p>
 
         <h2>Architecture</h2>
         <div class="code-block">
             <pre>
   <span class="comment">Weather Server</span>             <span class="comment">Agent (LLM)</span>                <span class="comment">Stats Server</span>
-  <span class="keyword">@s2sp_resource_tool()</span>                                           <span class="keyword">@s2sp_consumer_tool()</span>
+  <span class="keyword">@sd_resource_tool()</span>                                           <span class="keyword">@sd_consumer_tool()</span>
   get_alerts()  ──<span class="string">abstract</span>──▶  filters by             draw_chart()
   get_forecast()                event, severity   ◀── receives abstract
                                 selects _row_ids       + resource_url
@@ -81,16 +82,16 @@
 
         <h2>Weather Server (Resource)</h2>
         <p>
-            A standard MCP server with <code>@server.s2sp_resource_tool()</code>. Returns all
+            A standard MCP server with <code>@server.sd_resource_tool()</code>. Returns all
             ~30 NWS alert fields. The decorator adds <code>abstract_domains</code> and
             <code>mode</code> parameters automatically.
         </p>
         <div class="code-block">
-            <pre><span class="keyword">from</span> mcp_s2sp <span class="keyword">import</span> S2SPServer
+            <pre><span class="keyword">from</span> mcp_sd <span class="keyword">import</span> S2SPServer
 
 server = <span class="func">S2SPServer</span>(<span class="string">"weather-server"</span>)
 
-<span class="decorator">@server.s2sp_resource_tool()</span>
+<span class="decorator">@server.sd_resource_tool()</span>
 <span class="keyword">async def</span> <span class="func">get_alerts</span>(area: str) -> list[dict]:
     <span class="string">"""Get weather alerts — ~30 columns per alert."""</span>
     data = <span class="keyword">await</span> <span class="func">make_nws_request</span>(
@@ -103,16 +104,16 @@ server.<span class="func">run</span>()  <span class="comment"># mcp dev demos/we
 
         <h2>Stats Server (Consumer)</h2>
         <p>
-            Uses <code>@server.s2sp_consumer_tool()</code>. The decorator handles
+            Uses <code>@server.sd_consumer_tool()</code>. The decorator handles
             all S2SP plumbing &mdash; parsing, fetching body, remapping columns,
             merging by <code>_row_id</code>. Your function just receives merged rows.
         </p>
         <div class="code-block">
-            <pre><span class="keyword">from</span> mcp_s2sp <span class="keyword">import</span> S2SPServer
+            <pre><span class="keyword">from</span> mcp_sd <span class="keyword">import</span> S2SPServer
 
 server = <span class="func">S2SPServer</span>(<span class="string">"stats-server"</span>)
 
-<span class="decorator">@server.s2sp_consumer_tool()</span>
+<span class="decorator">@server.sd_consumer_tool()</span>
 <span class="keyword">async def</span> <span class="func">draw_chart</span>(rows: list[dict]) -> str:
     <span class="string">"""Receives merged abstract + body rows."""</span>
     <span class="keyword">return</span> <span class="func">generate_chart</span>(rows)
@@ -137,13 +138,13 @@ result = get_alerts(area=<span class="string">"CA"</span>,
 <span class="comment"># Agent sees only:</span>
 <span class="comment"># { "abstract": [{"_row_id": 0, "event": "Wind Advisory", ...}, ...],</span>
 <span class="comment">#   "resource_url": "http://..." }</span>
-<span class="comment"># No body data. No resource_url means body is inline.</span>
+<span class="comment"># No body data is included in async mode.</span>
 
 <span class="comment"># Step 2: Agent filters on abstract (control plane)</span>
 wind_rows = [r <span class="keyword">for</span> r <span class="keyword">in</span> result[<span class="string">"abstract"</span>]
              <span class="keyword">if</span> <span class="string">"Wind"</span> <span class="keyword">in</span> r[<span class="string">"event"</span>]]
 
-<span class="comment"># Step 3: Agent passes abstract rows + resource ref to Stats Server</span>
+<span class="comment"># Step 3: Agent passes abstract rows + resource_url to Stats Server</span>
 draw_chart(
     abstract_data=json.<span class="func">dumps</span>(wind_rows),
     
@@ -223,9 +224,9 @@ draw_chart(
             <tbody>
                 <tr>
                     <td>Tokens in agent context</td>
-                    <td>~10,000 (all 30 columns)</td>
-                    <td><strong>~600</strong> (abstract only)</td>
-                    <td><strong>~600</strong> (abstract only*)</td>
+                    <td>6,537 (all 29 columns)</td>
+                    <td><strong>469</strong> with 2 abstract columns</td>
+                    <td><strong>469</strong> with 2 abstract columns*</td>
                 </tr>
                 <tr>
                     <td>Body data through agent</td>
@@ -242,8 +243,8 @@ draw_chart(
                 <tr>
                     <td>Token savings</td>
                     <td>&mdash;</td>
-                    <td><strong>85-96%</strong></td>
-                    <td><strong>85-96%</strong></td>
+                    <td><strong>83-93%</strong></td>
+                    <td><strong>83-93%</strong></td>
                 </tr>
             </tbody>
         </table>
@@ -255,18 +256,20 @@ draw_chart(
         <h2>File Structure</h2>
         <div class="code-block">
             <pre>demos/weather_agent/
-├── weather_server.py    <span class="comment"># Resource: @s2sp_resource_tool() — get_alerts, get_forecast</span>
-├── stats_server.py      <span class="comment"># Consumer: @s2sp_consumer_tool() — draw_chart</span>
+├── weather_server.py    <span class="comment"># Resource: @sd_resource_tool() — get_alerts, get_forecast</span>
+├── stats_server.py      <span class="comment"># Consumer: @sd_consumer_tool() — draw_chart</span>
 ├── run_async.py         <span class="comment"># Scripted async demo</span>
 ├── run_sync.py          <span class="comment"># Scripted sync demo</span>
 ├── agent_async.py       <span class="comment"># Interactive agent (async mode)</span>
-└── agent_sync.py        <span class="comment"># Interactive agent (sync mode)</span></pre>
+├── agent_sync.py        <span class="comment"># Interactive agent (sync mode)</span>
+├── agent_sync_claude.py <span class="comment"># Claude Agent SDK sync adapter demo</span>
+└── agent_sync_langgraph.py <span class="comment"># LangGraph sync adapter demo</span></pre>
         </div>
     </main>
 </div>
 
 <footer class="footer">
-    <p>S2SP Protocol &mdash; An open extension for MCP.</p>
+    <p>MCP-SD / S2SP &mdash; An open extension for MCP.</p>
 </footer>
 
 </body>

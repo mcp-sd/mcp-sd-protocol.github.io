@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Introduction - S2SP Protocol</title>
+    <title>Introduction - MCP-SD / S2SP</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -11,15 +11,16 @@
 <nav class="nav">
     <div class="nav-inner">
         <a href="../index.html" class="nav-logo">
-            <img src="../images/s2sp_icon.png" class="logo-icon" alt="S2SP">
-            S2SP Protocol
+            <img src="../images/s2sp_icon.png" class="logo-icon" alt="MCP-SD">
+            MCP-SD <span class="nav-sub">/ S2SP</span>
         </a>
         <ul class="nav-links">
             <li><a href="../index.html">Home</a></li>
             <li><a href="introduction.html" class="active">Docs</a></li>
+            <li><a href="when-to-use.html">When to Use</a></li>
             <li><a href="protocol.html">Protocol</a></li>
             <li><a href="sdk.html">SDK</a></li>
-            <li><a href="demos.html">Examples</a>
+            <li><a href="demos.html">Demos</a>
             </li>
         </ul>
     </div>
@@ -48,16 +49,21 @@
     </aside>
 
     <main class="doc-content">
-        <h1>What is S2SP Protocol?</h1>
+        <h1>What is MCP-SD?</h1>
         <p>
-            The <strong>Server-to-Server Protocol (S2SP)</strong> is an open extension for the
-            <a href="https://modelcontextprotocol.io">Model Context Protocol (MCP)</a> that enables
-            direct data exchange between MCP servers while keeping the agent in the loop for
-            decision-making only. An S2SP server <em>is</em> an MCP server &mdash; the <code>S2SPServer</code>
-            class embeds a FastMCP instance, so every S2SP server exposes standard MCP tools. The
-            <code>@server.s2sp_resource_tool()</code> decorator adds a transparent layer that separates the
-            <em>control plane</em> (abstract fields the agent reasons over) from the <em>data plane</em>
-            (full data that flows server-to-server over HTTP), so agents never need to see bulk payloads.
+            <strong>MCP-SD</strong> (Selective Disclosure for MCP) is an open protocol pattern for the
+            <a href="https://modelcontextprotocol.io">Model Context Protocol (MCP)</a>. The agent declares
+            which <em>attributes</em> of a tool result it wants to see (via an <code>abstract_domains</code>
+            parameter) within a single tool call &mdash; the remaining attributes are withheld from the LLM's
+            context, shrinking per-turn context cost without changing what the agent can reason about.
+        </p>
+        <p>
+            <strong>S2SP</strong> (Server-to-Server Protocol) is the reference implementation of MCP-SD.
+            It pairs selective disclosure at the control plane with a dedicated <em>Direct Data Interface</em>
+            (DDI) at the data plane, so withheld columns flow directly between MCP servers without ever entering
+            the agent's context. An S2SP server <em>is</em> an MCP server &mdash; the <code>S2SPServer</code> class
+            embeds a FastMCP instance and adds the <code>@server.sd_resource_tool()</code> decorator plus a
+            local HTTP endpoint for the DDI.
         </p>
 
         <h2>The Problem</h2>
@@ -76,7 +82,7 @@
         </p>
         <ul>
             <li><strong>Token waste:</strong> Large payloads consume thousands of input and output tokens. Full alert objects with descriptions, coordinates, and metadata burn tokens the agent never reasons over.</li>
-            <li><strong>Latency:</strong> Data must serialize into the LLM's context window and back out again. Transfers that could complete in seconds over HTTP take minutes through the agent.</li>
+            <li><strong>Latency:</strong> Full payloads must serialize into the LLM-facing tool result and often back into another tool call. For large tables, this can add avoidable model and serialization latency.</li>
             <li><strong>Context saturation:</strong> Bulk data crowds out the reasoning tokens the model needs for its actual job &mdash; deciding <em>what</em> to do, not shuttling bytes.</li>
         </ul>
 
@@ -117,16 +123,16 @@
 
         <h2>Key Concepts</h2>
 
-        <h3>S2SPServer and @s2sp_resource_tool()</h3>
+        <h3>S2SPServer and @sd_resource_tool()</h3>
         <p>
             <code>S2SPServer</code> embeds a FastMCP instance &mdash; every S2SP server <em>is</em> an MCP
             server. You write normal MCP tools that return <code>list[dict]</code>, then decorate them with
-            <code>@server.s2sp_resource_tool()</code>. Without any special arguments from the caller, the tool
+            <code>@server.sd_resource_tool()</code>. Without any special arguments from the caller, the tool
             behaves exactly like a standard MCP tool. But when the agent passes
             <code>abstract_domains</code> (a comma-separated list of column names), S2SP activates: only
             those columns plus a <code>_row_id</code> integer index are returned to the agent (the abstract).
             The remaining columns become the <code>body_domains</code> and are cached on the server's
-            data plane. A <code>resource_url</code> are returned so another
+            data plane. A <code>resource_url</code> is returned so another
             server can fetch the body data later. An optional <code>mode</code> parameter controls
             whether the body is returned inline (<code>"sync"</code>) or only via later data-plane fetch
             (<code>"async"</code>, the default).
@@ -152,9 +158,9 @@
                 <code>{"row_ids": [...], "columns": [...]}</code>.
                 The agent has no visibility into this channel &mdash; data flows server-to-server only.</li>
             <li><strong>Sync mode</strong>: Body data is returned inline alongside the abstract in
-                a single tool response. The body passes through the agent's data channel (SDK layer)
-                but is <em>not</em> sent to the LLM &mdash; only the abstract enters the LLM context.
-                No server-to-server fetch is needed.</li>
+                a single tool response. An S2SP-aware agent SDK moves the body into an in-process
+                DDI buffer before the tool result is shown to the LLM; only the abstract enters
+                the LLM context. No server-to-server fetch is needed.</li>
         </ul>
 
         <h3>The Complete Flow</h3>
@@ -165,7 +171,9 @@
             <li>Agent calls <code>get_alerts(area="CA", abstract_domains="event,severity,urgency,status")</code> on Weather Server.</li>
             <li>Weather Server returns only those fields + <code>_row_id</code> for each alert, plus a <code>resource_url</code>. Full data is cached on the server.</li>
             <li>Agent examines the abstract results and filters: picks the wind alert <code>_row_id</code> values.</li>
-            <li>Agent tells Stats Server: <code>draw_chart(resource_url="http://...", row_ids="0,1,5")</code>.</li>
+            <li>Agent tells Stats Server: <code>draw_chart(abstract_data="[...]",
+                resource_url="http://...")</code>. The selected <code>_row_id</code> values are
+                carried in <code>abstract_data</code>.</li>
             <li>Stats Server <code>POST</code>s to the presigned <code>resource_url</code> directly (data plane), passing the selected row IDs.</li>
             <li>Stats Server receives full alert data, generates the chart. The agent never saw the full data.</li>
         </ol>
@@ -184,7 +192,7 @@
 
         <h3>Developers</h3>
         <ul>
-            <li>Drop-in decorator &mdash; add <code>@server.s2sp_resource_tool()</code> to an existing MCP tool and you are done.</li>
+            <li>Decorator-based integration &mdash; add <code>@server.sd_resource_tool()</code> to an MCP tool that returns <code>list[dict]</code>.</li>
             <li>Standard HTTP data plane &mdash; <code>POST &lt;resource_url&gt;</code>, no proprietary transport.</li>
             <li>Each server is a normal MCP server &mdash; <code>mcp dev</code> works for debugging independently.</li>
         </ul>
@@ -198,26 +206,26 @@
 
         <h3>End Users</h3>
         <ul>
-            <li>Faster results &mdash; transfers complete in seconds instead of minutes.</li>
-            <li>Lower costs &mdash; no more paying for tokens that just shuttle data.</li>
-            <li>Better accuracy &mdash; the agent's context is not polluted with raw data, so its reasoning is sharper.</li>
+            <li>Lower LLM token usage for workflows where the agent only needs selected fields.</li>
+            <li>Less context pressure from raw tabular payloads.</li>
+            <li>Clearer separation between orchestration data and downstream processing data.</li>
         </ul>
 
         <h2 id="quick-start">Quick Start</h2>
         <p>Install the S2SP Python SDK:</p>
         <div class="install-block">
             <span class="dollar">$</span>
-            <code>pip install mcp-s2sp</code>
+            <code>pip install mcp-sd</code>
         </div>
         <p>
             Create an S2SP server with a tool &mdash; it is just a normal MCP tool with a decorator:
         </p>
         <div class="code-block">
-            <pre><span class="keyword">from</span> mcp_s2sp <span class="keyword">import</span> S2SPServer
+            <pre><span class="keyword">from</span> mcp_sd <span class="keyword">import</span> S2SPServer
 
 server = <span class="func">S2SPServer</span>(<span class="string">"weather-server"</span>)
 
-<span class="decorator">@server.s2sp_resource_tool()</span>
+<span class="decorator">@server.sd_resource_tool()</span>
 <span class="keyword">async def</span> <span class="func">get_alerts</span>(area: <span class="func">str</span>) -> list[dict]:
     <span class="comment"># Just return full data &mdash; S2SP handles the rest</span>
     data = <span class="keyword">await</span> <span class="func">fetch_from_nws</span>(area)
@@ -242,7 +250,7 @@ server.<span class="func">run</span>()</pre>
             directly from the resource server:
         </p>
         <div class="code-block">
-            <pre><span class="comment"># Agent filters abstract rows, passes them + resource ref to Stats Server:</span>
+            <pre><span class="comment"># Agent filters abstract rows, passes them + resource_url to Stats Server:</span>
 <span class="func">draw_chart</span>(
     abstract_data=<span class="func">json.dumps</span>(wind_rows),
     resource_url=<span class="string">"http://weather:9001/s2sp/data/dK7x_..."</span>)
@@ -258,7 +266,7 @@ server.<span class="func">run</span>()</pre>
 </div>
 
 <footer class="footer">
-    <p>S2SP Protocol &mdash; An open extension for MCP. <a href="https://github.com/s2sp-protocol/python-sdk">GitHub</a></p>
+    <p>MCP-SD / S2SP &mdash; An open extension for MCP. <a href="https://github.com/mcp-sd/python-sdk">GitHub</a></p>
 </footer>
 
 </body>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Protocol Design - S2SP Protocol</title>
+    <title>Protocol Design - MCP-SD / S2SP</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -11,15 +11,16 @@
 <nav class="nav">
     <div class="nav-inner">
         <a href="../index.html" class="nav-logo">
-            <img src="../images/s2sp_icon.png" class="logo-icon" alt="S2SP">
-            S2SP Protocol
+            <img src="../images/s2sp_icon.png" class="logo-icon" alt="MCP-SD">
+            MCP-SD <span class="nav-sub">/ S2SP</span>
         </a>
         <ul class="nav-links">
             <li><a href="../index.html">Home</a></li>
             <li><a href="introduction.html">Docs</a></li>
+            <li><a href="when-to-use.html">When to Use</a></li>
             <li><a href="protocol.html" class="active">Protocol</a></li>
             <li><a href="sdk.html">SDK</a></li>
-            <li><a href="demos.html">Examples</a>
+            <li><a href="demos.html">Demos</a>
             </li>
         </ul>
     </div>
@@ -104,7 +105,7 @@ get_alerts(area=<span class="string">"CA"</span>, abstract_domains=<span class="
         <h3>Control Plane</h3>
         <p>
             The control plane uses standard MCP tool calls. The agent calls an
-            <code>@s2sp_resource_tool()</code>-decorated tool with <code>abstract_domains</code> to
+            <code>@sd_resource_tool()</code>-decorated tool with <code>abstract_domains</code> to
             specify which columns it needs. The response contains only those columns +
             <code>_row_id</code>. The agent uses this lightweight data to filter, reason,
             and decide which rows matter &mdash; then tells a consumer server what to do.
@@ -134,8 +135,8 @@ get_alerts(area=<span class="string">"CA"</span>, abstract_domains=<span class="
             <li>Agent calls <code>get_alerts(area="CA", abstract_domains="event,severity", mode="async")</code></li>
             <li>Resource server fetches all data, assigns <code>_row_id</code> to each row, caches full data</li>
             <li>Returns abstract rows + <code>resource_url</code> (no body)</li>
-            <li>Agent filters on abstract, selects rows, passes abstract + resource ref to consumer</li>
-            <li>Consumer calls <code>POST /s2sp/data/{resource_url}</code> on resource server with <code>{"row_ids": [...]}</code></li>
+            <li>Agent filters on abstract, selects rows, passes abstract + <code>resource_url</code> to consumer</li>
+            <li>Consumer calls <code>POST &lt;resource_url&gt;</code> with <code>{"row_ids": [...]}</code></li>
             <li>Source returns full data for selected rows. Agent never saw it.</li>
         </ol>
         <div class="code-block">
@@ -146,7 +147,7 @@ get_alerts(area=<span class="string">"CA"</span>, abstract_domains=<span class="
   |────────────────────────▶|                          |
   |                         |  cache full data         |
   |  ◀─ abstract + resource |  assign _row_id          |
-  |     _id + _url          |                          |
+  |     _url                |                          |
   |                         |                          |
   |  <span class="func">filter</span>: pick wind rows  |                          |
   |                         |                          |
@@ -258,8 +259,7 @@ Content-Type: application/json
     {<span class="string">"_row_id"</span>: 2, <span class="string">"description"</span>: <span class="string">"Gusts up to 55 mph..."</span>, ...},
     ...
   ],
-  <span class="string">"total_rows"</span>: 3,
-  <span class="string">"columns_returned"</span>: [<span class="string">"_row_id"</span>, <span class="string">"description"</span>]
+  <span class="string">"total_rows"</span>: 3
 }</pre>
         </div>
         <ul>
@@ -289,16 +289,18 @@ Content-Type: application/json
         <h3>Token Expiry</h3>
         <p>
             Cached data and <code>resource_url</code> references are single-use and expire
-            after a 10-minute TTL. After expiry, the data is removed from the resource server
-            server's cache and the <code>resource_url</code> becomes invalid.
+            after a 10-minute TTL. Expired entries are rejected and lazily cleaned
+            when the data-plane endpoint handles requests.
         </p>
 
         <h2>MCP Compatibility</h2>
         <p>
-            Both resource and consumer tools are fully backward-compatible with MCP:
+            S2SP resource tools remain usable by standard MCP clients. Consumer tools
+            are also normal MCP tools, but callers must provide the expected JSON
+            arguments:
         </p>
 
-        <h3>Resource Tool (<code>@s2sp_resource_tool()</code>)</h3>
+        <h3>Resource Tool (<code>@sd_resource_tool()</code>)</h3>
         <ul>
             <li><strong>Without <code>abstract_domains</code></strong>: The tool behaves
                 exactly like a standard MCP tool — returns all data as
@@ -311,13 +313,14 @@ Content-Type: application/json
                 <code>abstract_domains</code> and get normal MCP behavior.</li>
         </ul>
 
-        <h3>Consumer Tool (<code>@s2sp_consumer_tool()</code>)</h3>
+        <h3>Consumer Tool (<code>@sd_consumer_tool()</code>)</h3>
         <ul>
             <li>Appears as a standard MCP tool with four string parameters:
                 <code>abstract_data</code>, <code>resource_url</code>,
                 <code>body_data</code>, <code>column_mapping</code>.</li>
-            <li>Any MCP agent can call it — it's just a regular tool that accepts
-                JSON strings. No special S2SP client required.</li>
+            <li>Any MCP client can see and call it as a regular tool. A non-S2SP
+                agent still needs to pass valid <code>abstract_data</code> and either
+                <code>resource_url</code> or <code>body_data</code> for S2SP resolution.</li>
             <li>The consumer server handles fetching and merging internally — the
                 agent just passes the parameters from the resource tool response.</li>
         </ul>
@@ -329,14 +332,16 @@ Content-Type: application/json
                 are visible and callable.</li>
             <li><strong>No spec changes</strong>: S2SP uses standard MCP tool parameters
                 and JSON responses. No modifications to the MCP protocol are required.</li>
-            <li><strong>Claude Desktop / OpenAI / Anthropic</strong>: Tested with all
-                major MCP-compatible clients.</li>
+            <li><strong>Client support</strong>: Resource tools degrade to normal MCP
+                behavior when callers omit <code>abstract_domains</code>. Sync mode
+                requires an S2SP-aware agent dispatcher before the body can be kept
+                out of the LLM context.</li>
         </ul>
     </main>
 </div>
 
 <footer class="footer">
-    <p>S2SP Protocol &mdash; An open extension for MCP.</p>
+    <p>MCP-SD / S2SP &mdash; An open extension for MCP.</p>
 </footer>
 
 </body>

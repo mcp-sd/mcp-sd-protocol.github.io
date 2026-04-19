@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Use S2SP in Claude - S2SP Protocol</title>
+    <title>Use S2SP in Claude - MCP-SD / S2SP</title>
     <link rel="stylesheet" href="../css/style.css">
     <style>
         .video-container {
@@ -57,15 +57,16 @@
 <nav class="nav">
     <div class="nav-inner">
         <a href="../index.html" class="nav-logo">
-            <img src="../images/s2sp_icon.png" class="logo-icon" alt="S2SP">
-            S2SP Protocol
+            <img src="../images/s2sp_icon.png" class="logo-icon" alt="MCP-SD">
+            MCP-SD <span class="nav-sub">/ S2SP</span>
         </a>
         <ul class="nav-links">
             <li><a href="../index.html">Home</a></li>
             <li><a href="introduction.html">Docs</a></li>
+            <li><a href="when-to-use.html">When to Use</a></li>
             <li><a href="protocol.html">Protocol</a></li>
             <li><a href="sdk.html">SDK</a></li>
-            <li><a href="demos.html">Examples</a>
+            <li><a href="demos.html">Demos</a>
             </li>
         </ul>
     </div>
@@ -125,7 +126,7 @@
             <li>The S2SP repository cloned and installed:
                 <div class="code-block">
                     <pre><span class="string">$</span> git clone &lt;repo-url&gt;
-<span class="string">$</span> cd S2S_protocol
+<span class="string">$</span> cd S2SP_protocol
 <span class="string">$</span> pip install -e ".[demos]"</pre>
                 </div>
             </li>
@@ -139,9 +140,9 @@
         </div>
         <p>You need the absolute path to the project's Python interpreter:</p>
         <div class="code-block">
-            <pre><span class="string">$</span> cd /path/to/S2S_protocol
+            <pre><span class="string">$</span> cd /path/to/S2SP_protocol
 <span class="string">$</span> echo "$(pwd)/.venv/bin/python"
-<span class="comment"># Example: /Users/you/S2S_protocol/.venv/bin/python</span></pre>
+<span class="comment"># Example: /Users/you/S2SP_protocol/.venv/bin/python</span></pre>
         </div>
 
         <div class="step-header">
@@ -168,12 +169,12 @@
                 <pre>{
   <span class="string">"mcpServers"</span>: {
     <span class="string">"weather"</span>: {
-      <span class="string">"command"</span>: <span class="string">"/path/to/S2S_protocol/.venv/bin/python"</span>,
-      <span class="string">"args"</span>: [<span class="string">"/path/to/S2S_protocol/demos/weather_agent/weather_server.py"</span>]
+      <span class="string">"command"</span>: <span class="string">"/path/to/S2SP_protocol/.venv/bin/python"</span>,
+      <span class="string">"args"</span>: [<span class="string">"/path/to/S2SP_protocol/demos/weather_agent/weather_server.py"</span>]
     },
     <span class="string">"stats"</span>: {
-      <span class="string">"command"</span>: <span class="string">"/path/to/S2S_protocol/.venv/bin/python"</span>,
-      <span class="string">"args"</span>: [<span class="string">"/path/to/S2S_protocol/demos/weather_agent/stats_server.py"</span>]
+      <span class="string">"command"</span>: <span class="string">"/path/to/S2SP_protocol/.venv/bin/python"</span>,
+      <span class="string">"args"</span>: [<span class="string">"/path/to/S2SP_protocol/demos/weather_agent/stats_server.py"</span>]
     }
   }
 }</pre>
@@ -230,8 +231,8 @@
         </div>
         <p>
             The weather server returns only those 2 fields + <code>_row_id</code> per alert
-            (~600 tokens), plus a <code>resource_url</code>
-            pointing to the full cached data (~9,000 tokens, not sent to Claude).
+            (469 tokens in the measured 8-alert demo), plus a <code>resource_url</code>
+            pointing to the cached body columns, which are not sent to Claude in async mode.
         </p>
 
         <div class="step-header">
@@ -252,10 +253,10 @@
 
         <div class="step-header">
             <span class="step-number">3</span>
-            <h3 style="margin:0">Calls draw_chart with resource reference</h3>
+            <h3 style="margin:0">Calls draw_chart with resource_url</h3>
         </div>
         <p>
-            Claude passes the filtered abstract rows and the resource reference to
+            Claude passes the filtered abstract rows and the <code>resource_url</code> to
             the stats server:
         </p>
         <div class="code-block">
@@ -295,7 +296,7 @@
 </div>
 
 <footer class="footer">
-    <p>S2SP Protocol &mdash; An open extension for MCP.</p>
+    <p>MCP-SD / S2SP &mdash; An open extension for MCP.</p>
 </footer>
 
 </body>

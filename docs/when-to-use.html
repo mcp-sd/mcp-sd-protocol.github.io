@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>When to Use - MCP-SD / S2SP</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="../index.html" class="nav-logo">
+            <img src="../images/s2sp_icon.png" class="logo-icon" alt="MCP-SD">
+            MCP-SD <span class="nav-sub">/ S2SP</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="../index.html">Home</a></li>
+            <li><a href="introduction.html">Docs</a></li>
+            <li><a href="when-to-use.html" class="active">When to Use</a></li>
+            <li><a href="protocol.html">Protocol</a></li>
+            <li><a href="sdk.html">SDK</a></li>
+            <li><a href="demos.html">Demos</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="doc-layout">
+    <aside class="sidebar">
+        <div class="sidebar-section">
+            <h4>Getting Started</h4>
+            <a href="introduction.html">Introduction</a>
+            <a href="when-to-use.html" class="active">When to Use</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Learn</h4>
+            <a href="protocol.html">Protocol Design</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Develop</h4>
+            <a href="sdk.html">Python SDK</a>
+        </div>
+        <div class="sidebar-section">
+            <h4>Examples</h4>
+            <a href="demos.html">Agent Development with S2SP</a>
+            <a href="tutorial.html">Use S2SP Servers in Claude</a>
+        </div>
+    </aside>
+
+    <main class="doc-content">
+        <h1>When to Use MCP-SD and S2SP</h1>
+        <p>
+            A quick decision guide: does your role benefit from MCP-SD? Does your workload
+            fit the pattern? And if you adopt S2SP, which transfer mode suits your deployment?
+        </p>
+
+        <!-- ============================================== -->
+        <h2 id="who">1. Who is this for?</h2>
+        <p>
+            Three signals you should adopt MCP-SD: two by <em>role</em> (tool developer,
+            agent developer) and one by <em>workload</em> (multi-server structured-data
+            routing). Any one of them can justify evaluating MCP-SD; all three together
+            make the strongest fit.
+        </p>
+
+        <div class="persona-grid">
+            <div class="persona-card">
+                <div class="persona-tag" style="color: var(--green);">Role</div>
+                <h3>MCP tool developers</h3>
+                <p class="persona-lead">&hellip;whose tools return large chunks of structured data to the agent.</p>
+                <p>
+                    If your MCP server exposes a tool returning <code>list[dict]</code> with dozens
+                    of columns&mdash;query results, CRM records, search hits, telemetry rows,
+                    alert feeds&mdash;standard MCP callers receive the full payload in tokens, even
+                    when the agent only needs a few columns to make routing decisions.
+                </p>
+                <p><strong>What you get:</strong></p>
+                <ul>
+                    <li>Decorator-based integration: <code>@server.sd_resource_tool()</code>. No MCP spec changes; callers that omit <code>abstract_domains</code> get the full result.</li>
+                    <li>Traditional MCP agents keep working unchanged (backward-compatible).</li>
+                    <li>In the weather-alert demo, MCP-SD-aware agents saw 83&ndash;93% fewer tokens for the measured tool result.</li>
+                    <li>Body delivery is handled for you&mdash;presigned URL, DDI endpoint, caching, TTL.</li>
+                </ul>
+                <p><strong>Start here:</strong> <a href="sdk.html">Python SDK</a> &rarr; Resource Tool section.</p>
+            </div>
+
+            <div class="persona-card">
+                <div class="persona-tag" style="color: var(--blue);">Role</div>
+                <h3>Agent developers</h3>
+                <p class="persona-lead">&hellip;who want to reduce token spend in structured-data workflows.</p>
+                <p>
+                    If you're building an agent on LangGraph, Claude Agent SDK, AutoGen, or a
+                    custom loop, and your workflow shuttles structured data between MCP servers,
+                    those payloads are eating your context window and your per-turn cost. MCP-SD
+                    gives the agent a way to ask for just the columns it needs.
+                </p>
+                <p><strong>What you get:</strong></p>
+                <ul>
+                    <li>Platform-agnostic core: <code>mcp_sd.agent.S2SPDispatcher</code> plugs into any tool-call lifecycle.</li>
+                    <li>Ready-made adapters for <strong>Claude Agent SDK</strong> and <strong>LangGraph</strong>.</li>
+                    <li>Potentially lower end-to-end latency when large body data no longer enters LLM inference.</li>
+                    <li>Lower token bill on compatible tool calls where the agent only needs selected columns.</li>
+                </ul>
+                <p><strong>Start here:</strong> <a href="sdk.html">Python SDK</a> &rarr; Agent-side integrations.</p>
+            </div>
+
+            <div class="persona-card">
+                <div class="persona-tag" style="color: var(--orange);">Workload</div>
+                <h3>Multi-server data routing</h3>
+                <p class="persona-lead">&hellip;your agent requests or forwards structured data among multiple MCP servers.</p>
+                <p>
+                    The canonical topology MCP-SD is built for: one MCP server produces
+                    tabular data, the agent filters or routes rows, and another MCP server
+                    consumes or transforms them. Database &rarr; analytics. CRM &rarr; email.
+                    Search &rarr; summarizer. Log store &rarr; alert pipeline. Every hop that
+                    currently serializes rows into the LLM context is a hop MCP-SD removes.
+                </p>
+                <p><strong>What you get:</strong></p>
+                <ul>
+                    <li>Body rows flow <strong>server-to-server over the DDI</strong> (async) or through an S2SP-aware agent SDK (sync), outside the LLM context.</li>
+                    <li>The agent keeps full orchestration control: it decides <em>what</em> moves <em>where</em>, just without carrying the payload itself.</li>
+                    <li>Can be composed in pipelines when each hop exposes the appropriate resource or consumer tool.</li>
+                    <li>Works on heterogeneous deployments via presigned URLs (async) or in-process DDI (sync).</li>
+                </ul>
+                <p><strong>Start here:</strong> <a href="introduction.html">Introduction</a> &rarr; The Complete Flow.</p>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <h2 id="mcp-sd-fit">2. Is MCP-SD the right fit for this tool?</h2>
+        <p>
+            MCP-SD applies only to a specific kind of tool: one that returns
+            <strong>tabular data</strong> (<code>list[dict]</code>) where the agent
+            needs only some columns to reason about the rest.
+        </p>
+
+        <div class="fit-grid">
+            <div class="fit-card fit-yes">
+                <h3>Adopt MCP-SD when&hellip;</h3>
+                <ul>
+                    <li>Your tool returns structured row data with enough columns or heavy fields for projection to matter (DataFrames, SQL results, JSON array responses).</li>
+                    <li>Only a few columns drive the agent's decisions; the rest are heavy payload (long descriptions, nested JSON, encoded blobs).</li>
+                    <li>The tool is called <strong>repeatedly across a conversation</strong>&mdash;per-turn token savings compound quickly.</li>
+                    <li>You control the resource server (can add the <code>@sd_resource_tool()</code> decorator).</li>
+                    <li>Your agent pipeline forwards data to a downstream consumer tool that does want the full rows.</li>
+                </ul>
+            </div>
+            <div class="fit-card fit-no">
+                <h3>Skip MCP-SD when&hellip;</h3>
+                <ul>
+                    <li>The tool returns a single scalar or tiny blob (e.g., <code>get_price(symbol) &rarr; float</code>).</li>
+                    <li>The agent must reason over every field&mdash;no withheld columns to offload.</li>
+                    <li>Data is <strong>truly unstructured</strong>: images, audio, video, PDFs, free-form text.</li>
+                    <li>Tool is one-shot and you don't care about token cost (debug utilities, one-off ops tools).</li>
+                    <li>Your pipeline has no downstream consumer&mdash;the agent itself is the final stage and needs the whole payload.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <h2 id="mode-choice">2. Once you adopt MCP-SD, pick a mode</h2>
+        <p>
+            S2SP&mdash;the reference implementation of MCP-SD&mdash;offers two transfer
+            modes for the data plane. Both keep body rows out of the LLM context; they
+            differ in <em>where</em> those rows live in transit.
+        </p>
+
+        <div class="fit-grid">
+            <div class="fit-card fit-async">
+                <h3>Pick <strong>async</strong> (default) when&hellip;</h3>
+                <ul>
+                    <li>Resource and consumer servers can <strong>reach each other over HTTP</strong> (same VPC, public internet, shared overlay).</li>
+                    <li>Body payloads are large enough that keeping them out of the agent process is operationally useful.</li>
+                    <li>You want the body to <strong>never</strong> touch the agent process (strictest LLM-isolation story).</li>
+                    <li>Multi-hop pipelines: resource &rarr; consumer-A &rarr; consumer-B, where each stop can fetch from the previous.</li>
+                </ul>
+            </div>
+            <div class="fit-card fit-sync">
+                <h3>Pick <strong>sync</strong> when&hellip;</h3>
+                <ul>
+                    <li>Servers are <strong>firewalled, NAT'd, or mTLS-bound</strong>&mdash;the consumer cannot reach the resource server directly.</li>
+                    <li>Single-hop flow: resource &rarr; agent &rarr; consumer is the whole pipeline.</li>
+                    <li>You <strong>control the agent process</strong>: your own Python loop, LangGraph graph, or Claude Agent SDK agent. The SDK ships adapters for both.</li>
+                    <li>You need the body in-process for auditing, logging, or redaction before forwarding.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="fit-warning">
+            <div class="fit-warning-title">Caveat for sync mode</div>
+            <p>
+                Sync mode requires an S2SP-aware agent (using <code>mcp_sd.agent.S2SPDispatcher</code> or one of its adapters). A generic MCP client that forwards raw tool results directly to the LLM will not hide sync-mode body rows. If your client does not install the dispatcher, choose async mode.
+            </p>
+        </div>
+
+        <!-- ============================================== -->
+        <h2 id="scenarios">3. Concrete scenarios</h2>
+        <p>
+            How the two decisions above play out on common workloads.
+        </p>
+
+        <div class="scenario">
+            <div class="scenario-title">Analytics pipeline: weather alerts &rarr; chart generator</div>
+            <p>
+                Resource server exposes <code>get_alerts(area)</code> returning 29 columns per alert. Agent only needs <code>event</code>, <code>severity</code>, <code>headline</code> to pick which alerts to chart. Consumer server <code>draw_chart</code> needs the full rows to render.
+            </p>
+            <div class="scenario-verdict"><strong>Adopt MCP-SD &mdash; async mode.</strong> Classic fit. Both servers sit in the same cloud, HTTP data-plane fetch is cheap.</div>
+        </div>
+
+        <div class="scenario">
+            <div class="scenario-title">CRM sync: customer records &rarr; email marketing service</div>
+            <p>
+                Resource server returns 30+ fields per customer (PII, history, preferences). Agent filters by segment and forwards matching customers to the email service.
+            </p>
+            <div class="scenario-verdict"><strong>Adopt MCP-SD &mdash; async if same-VPC, sync if firewalled.</strong> If the email service can't reach the CRM directly, use sync so the body transits the agent process but still bypasses the LLM.</div>
+        </div>
+
+        <div class="scenario">
+            <div class="scenario-title">Ops pipeline: log search &rarr; summarizer</div>
+            <p>
+                Search returns many structured rows; agent filters to the rows relevant to the incident and forwards them to a downstream tool.
+            </p>
+            <div class="scenario-verdict"><strong>Adopt MCP-SD &mdash; async mode.</strong> This is a good fit when only a few fields drive filtering and the downstream tool needs the full rows.</div>
+        </div>
+
+        <div class="scenario">
+            <div class="scenario-title">Price lookup: <code>get_price(ticker)</code> returns a single float</div>
+            <p>
+                Tool has no tabular structure. Nothing to selectively disclose.
+            </p>
+            <div class="scenario-verdict"><strong>Skip MCP-SD.</strong> Use the tool as a plain MCP call.</div>
+        </div>
+
+        <div class="scenario">
+            <div class="scenario-title">Document OCR: PDF &rarr; extracted text</div>
+            <p>
+                Return value is a text blob, not tabular rows.
+            </p>
+            <div class="scenario-verdict"><strong>Skip MCP-SD.</strong> Out of scope&mdash;MCP-SD deliberately targets structured tabular data only. File-transfer extensions for unstructured blobs are listed as future work.</div>
+        </div>
+
+        <div class="scenario">
+            <div class="scenario-title">Reporting: query &rarr; agent summarizes to user</div>
+            <p>
+                Agent is the final stage. No downstream consumer; everything the agent receives needs to go into the LLM for summarization.
+            </p>
+            <div class="scenario-verdict"><strong>Skip MCP-SD.</strong> Without a consumer to route withheld body to, there's nothing to save.</div>
+        </div>
+
+        <!-- ============================================== -->
+        <h2 id="composing">4. Composing with other extensions</h2>
+        <p>
+            MCP-SD operates on the return side of tool calls. It composes cleanly with
+            <em>progressive disclosure</em> schemes that operate on the call side
+            (<a href="https://www.anthropic.com/news/skills">Claude Skills</a>,
+            the MCP Progressive Disclosure extension, Bounded Context Packs).
+            Run them together:
+        </p>
+        <ul>
+            <li><strong>Skills</strong> trims which capabilities the LLM surfaces in a given session.</li>
+            <li><strong>MCP Progressive Disclosure</strong> trims per-tool schema cost.</li>
+            <li><strong>MCP-SD / S2SP</strong> trims the payload size of each tool result.</li>
+        </ul>
+        <p>
+            Each one targets a different layer of the workflow, so they can be evaluated together when their assumptions match your agent stack.
+        </p>
+
+        <!-- ============================================== -->
+        <h2 id="next">Next steps</h2>
+        <p>
+            If you've decided MCP-SD fits, head to <a href="introduction.html">Introduction</a>
+            for the concept in full, <a href="protocol.html">Protocol Design</a> for the spec,
+            or <a href="sdk.html">Python SDK</a> to start integrating.
+        </p>
+    </main>
+</div>
+
+<footer class="footer">
+    <p>MCP-SD / S2SP &mdash; An open extension for MCP. <a href="https://github.com/mcp-sd/python-sdk">GitHub</a></p>
+</footer>
+
+</body>
+</html>

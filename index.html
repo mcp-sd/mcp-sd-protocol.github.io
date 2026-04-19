@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>S2SP Protocol - Server-to-Server Data Transfer for MCP</title>
+    <title>MCP-SD — Selective Disclosure for MCP (S2SP reference implementation)</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -12,18 +12,19 @@
 <nav class="nav">
     <div class="nav-inner">
         <a href="index.html" class="nav-logo">
-            <img src="images/s2sp_icon.png" class="logo-icon" alt="S2SP">
-            S2SP Protocol
+            <img src="images/s2sp_icon.png" class="logo-icon" alt="MCP-SD">
+            MCP-SD <span class="nav-sub">/ S2SP</span>
         </a>
         <ul class="nav-links">
             <li><a href="index.html" class="active">Home</a></li>
             <li><a href="docs/introduction.html">Docs</a></li>
+            <li><a href="docs/when-to-use.html">When to Use</a></li>
             <li><a href="docs/protocol.html">Protocol</a></li>
             <li><a href="docs/sdk.html">SDK</a></li>
             <li><a href="docs/demos.html">Demos</a></li>
         </ul>
         <div class="nav-right">
-            <a href="https://github.com/s2sp-protocol/python-sdk" class="btn-github">
+            <a href="https://github.com/mcp-sd/python-sdk" class="btn-github">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
                 GitHub
             </a>
@@ -33,16 +34,52 @@
 
 <!-- Hero -->
 <section class="hero">
-    <div class="hero-badge">Open Protocol for MCP</div>
-    <h1>Server-to-Server Data Transfer for MCP</h1>
+    <div class="hero-badge">Selective Disclosure for MCP</div>
+    <h1>MCP-SD: Selective Disclosure for Tool Calls</h1>
     <p class="subtitle">
-        S2SP enables direct data transfer between MCP servers without passing data through the agent's context window &mdash; saving tokens, reducing latency, and preserving agent control.
+        <strong>MCP-SD</strong> is a protocol pattern that lets an agent select which <em>attributes</em> of a tool result enter the LLM &mdash; the rest stays out.
+        <strong>S2SP</strong> is its reference implementation, adding a Direct Data Interface (DDI) so the withheld body flows server-to-server in async mode or through the agent SDK out-of-band in sync mode.
     </p>
     <div class="hero-buttons">
         <a href="docs/introduction.html" class="btn-primary">Get Started</a>
         <a href="docs/protocol.html" class="btn-secondary">Read the Spec</a>
     </div>
-    <img src="images/hero_diagram.png" alt="S2SP Protocol Diagram" class="hero-diagram">
+    <svg class="hero-diagram" viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="S2SP with DDI data plane">
+        <defs>
+            <marker id="hero-arr-dash" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"/>
+            </marker>
+            <marker id="hero-arr-green" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto">
+                <path d="M0,0 L0,8 L10,4 z" fill="#3fb950"/>
+            </marker>
+        </defs>
+
+        <!-- Agent (top center) -->
+        <rect x="310" y="20" width="140" height="70" rx="10" fill="#0d1117" stroke="#58a6ff" stroke-width="2"/>
+        <text x="380" y="50" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="700" fill="#58a6ff">Agent</text>
+        <text x="380" y="72" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#8b949e">control plane</text>
+
+        <!-- Resource Server -->
+        <rect x="80" y="180" width="160" height="70" rx="10" fill="#0d1117" stroke="#3fb950" stroke-width="2"/>
+        <text x="160" y="210" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#3fb950">Resource Server</text>
+        <text x="160" y="230" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#8b949e">caches body</text>
+
+        <!-- Consumer Server -->
+        <rect x="520" y="180" width="160" height="70" rx="10" fill="#0d1117" stroke="#d29922" stroke-width="2"/>
+        <text x="600" y="210" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#d29922">Consumer Server</text>
+        <text x="600" y="230" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#8b949e">merges + processes</text>
+
+        <!-- Control-plane dashed lines -->
+        <line x1="320" y1="92" x2="220" y2="178" stroke="#58a6ff" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#hero-arr-dash)"/>
+        <line x1="440" y1="92" x2="540" y2="178" stroke="#58a6ff" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#hero-arr-dash)"/>
+        <text x="218" y="140" text-anchor="end" font-family="sans-serif" font-size="11" fill="#58a6ff" font-style="italic">abstract</text>
+        <text x="542" y="140" text-anchor="start" font-family="sans-serif" font-size="11" fill="#58a6ff" font-style="italic">abstract + resource_url</text>
+
+        <!-- DDI data-plane arrow -->
+        <line x1="240" y1="218" x2="518" y2="218" stroke="#3fb950" stroke-width="2.6" marker-end="url(#hero-arr-green)"/>
+        <text x="380" y="205" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#3fb950">DDI &mdash; data plane</text>
+        <text x="380" y="240" text-anchor="middle" font-family="monospace" font-size="11" fill="#3fb950">POST /s2sp/data/{token}</text>
+    </svg>
 </section>
 
 <!-- Stats (measured from weather alert demo: 8 alerts, 29 columns) -->
@@ -57,43 +94,393 @@
             <div class="stat-label">Data-plane fetch (localhost)</div>
         </div>
         <div class="stat-item">
-            <div class="stat-value" style="color: var(--purple);">100%</div>
-            <div class="stat-label">MCP backward compatible</div>
+            <div class="stat-value" style="color: var(--purple);">MCP</div>
+            <div class="stat-label">No MCP spec changes required</div>
         </div>
     </div>
 </section>
 
-<!-- What is S2SP -->
+<!-- What is MCP-SD / S2SP -->
 <section class="section">
-    <h2 class="section-title">What is the S2SP Protocol?</h2>
+    <h2 class="section-title">MCP-SD and S2SP</h2>
     <p class="section-subtitle">
-        S2SP (Server-to-Server Protocol) is an open protocol extension for MCP that enables direct data transfer between MCP servers, orchestrated by the AI agent.
+        Two features of the protocol: one for <em>what</em> the LLM sees, one for <em>where</em> the rest goes.
     </p>
 
-    <p style="color: var(--text-secondary); margin-bottom: 24px; max-width: 700px; line-height: 1.7;">
-        Think of S2SP like a <strong style="color: var(--text-primary);">direct pipeline between servers</strong>. Just as you wouldn't route a file transfer through your brain when copying between two USB drives, S2SP lets MCP servers exchange data directly &mdash; while the agent stays in control of <em>what</em> moves <em>where</em>.
+    <div class="twolayer-grid">
+        <div class="twolayer-card">
+            <h3 style="color: var(--blue);">MCP-SD</h3>
+            <p class="twolayer-tagline">Selective Disclosure for MCP</p>
+            <ul class="twolayer-list">
+                <li>Any MCP tool returning tabular data can expose an <code>abstract_domains</code> parameter.</li>
+                <li>The agent names the columns it needs; the remainder is withheld from the LLM within the same call.</li>
+                <li>Shrinks per-turn LLM context by disclosing only the attributes the agent declares.</li>
+                <li>Operates at the control plane, independent of how the withheld body is delivered.</li>
+            </ul>
+        </div>
+        <div class="twolayer-card">
+            <h3 style="color: var(--green);">S2SP</h3>
+            <p class="twolayer-tagline">Server-to-Server Protocol with a Direct Data Interface</p>
+            <ul class="twolayer-list">
+                <li>Operates at the data plane &mdash; delivers withheld columns via a dedicated <strong>DDI</strong> (Direct Data Interface).</li>
+                <li>Body cached behind a presigned URL (256-bit token, single-use, 10-min TTL).</li>
+                <li>Two modes: <strong>async</strong> (direct server-to-server) and <strong>sync</strong> (through the agent's DDI out-of-band).</li>
+                <li>Reference Python SDK: <code>mcp_sd</code>, with server decorators, data-plane helpers, and agent adapters.</li>
+            </ul>
+        </div>
+    </div>
+
+    <svg class="how-diagram" viewBox="0 0 1000 440" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Without S2SP vs With S2SP">
+        <defs>
+            <marker id="hw-arr-red" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto">
+                <path d="M0,0 L0,8 L10,4 z" fill="#f85149"/>
+            </marker>
+            <marker id="hw-arr-dash" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#58a6ff"/>
+            </marker>
+            <marker id="hw-arr-green" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto">
+                <path d="M0,0 L0,8 L10,4 z" fill="#3fb950"/>
+            </marker>
+        </defs>
+
+        <!-- Outer frame -->
+        <rect x="4" y="4" width="992" height="432" rx="14" fill="#0d1117" stroke="#30363d" stroke-width="1"/>
+
+        <!-- Divider + VS label -->
+        <line x1="500" y1="40" x2="500" y2="400" stroke="#30363d" stroke-width="1" stroke-dasharray="4 4"/>
+        <text x="500" y="34" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#6e7681" font-style="italic">vs</text>
+
+        <!-- ===== LEFT: Without MCP-SD ===== -->
+        <text x="250" y="56" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="700" fill="#f85149">Without MCP-SD</text>
+
+        <!-- Weather Server -->
+        <rect x="30" y="170" width="120" height="80" rx="10" fill="#0d1117" stroke="#3fb950" stroke-width="2"/>
+        <text x="90" y="205" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#3fb950">Weather</text>
+        <text x="90" y="224" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#3fb950">Server</text>
+
+        <!-- Agent (middle) -->
+        <rect x="200" y="170" width="120" height="80" rx="10" fill="#0d1117" stroke="#58a6ff" stroke-width="2"/>
+        <text x="260" y="205" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="700" fill="#58a6ff">Agent</text>
+        <text x="260" y="227" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#8b949e">LLM</text>
+
+        <!-- Stats Server -->
+        <rect x="370" y="170" width="120" height="80" rx="10" fill="#0d1117" stroke="#d29922" stroke-width="2"/>
+        <text x="430" y="205" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#d29922">Stats</text>
+        <text x="430" y="224" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#d29922">Server</text>
+
+        <!-- Red arrows -->
+        <line x1="150" y1="210" x2="196" y2="210" stroke="#f85149" stroke-width="2.5" marker-end="url(#hw-arr-red)"/>
+        <line x1="320" y1="210" x2="366" y2="210" stroke="#f85149" stroke-width="2.5" marker-end="url(#hw-arr-red)"/>
+
+        <!-- Left captions -->
+        <text x="250" y="305" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#f85149" font-weight="600">All 30 columns flow through agent</text>
+        <text x="250" y="340" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#8b949e">6,537 tokens in measured demo</text>
+
+        <!-- ===== RIGHT: With MCP-SD (S2SP) ===== -->
+        <text x="750" y="56" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="700" fill="#3fb950">With MCP-SD (S2SP)</text>
+
+        <!-- Agent (top center) -->
+        <rect x="690" y="80" width="140" height="80" rx="10" fill="#0d1117" stroke="#58a6ff" stroke-width="2"/>
+        <text x="760" y="115" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="700" fill="#58a6ff">Agent</text>
+        <text x="760" y="137" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#8b949e">LLM</text>
+
+        <!-- Weather Server (bottom left) -->
+        <rect x="540" y="220" width="140" height="80" rx="10" fill="#0d1117" stroke="#3fb950" stroke-width="2"/>
+        <text x="610" y="255" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#3fb950">Weather</text>
+        <text x="610" y="274" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#3fb950">Server</text>
+
+        <!-- Stats Server (bottom right) -->
+        <rect x="840" y="220" width="140" height="80" rx="10" fill="#0d1117" stroke="#d29922" stroke-width="2"/>
+        <text x="910" y="255" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#d29922">Stats</text>
+        <text x="910" y="274" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#d29922">Server</text>
+
+        <!-- Control-plane dashed arrows: Agent -> Weather, Agent -> Stats -->
+        <line x1="700" y1="160" x2="625" y2="218" stroke="#58a6ff" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#hw-arr-dash)"/>
+        <line x1="820" y1="160" x2="895" y2="218" stroke="#58a6ff" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#hw-arr-dash)"/>
+
+        <text x="625" y="185" text-anchor="end" font-family="sans-serif" font-size="11" fill="#58a6ff" font-style="italic">abstract</text>
+        <text x="625" y="199" text-anchor="end" font-family="sans-serif" font-size="11" fill="#58a6ff" font-style="italic">domains only</text>
+
+        <text x="895" y="185" text-anchor="start" font-family="sans-serif" font-size="11" fill="#58a6ff" font-style="italic">abstract +</text>
+        <text x="895" y="199" text-anchor="start" font-family="sans-serif" font-size="11" fill="#58a6ff" font-style="italic">resource_url</text>
+
+        <!-- DDI arrow: Stats -> Weather (data plane) -->
+        <line x1="840" y1="268" x2="682" y2="268" stroke="#3fb950" stroke-width="2.6" marker-end="url(#hw-arr-green)"/>
+        <text x="760" y="252" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#3fb950">DDI</text>
+        <text x="760" y="290" text-anchor="middle" font-family="monospace" font-size="11" fill="#3fb950">POST /s2sp/data/{token}</text>
+
+        <!-- Right captions -->
+        <text x="750" y="340" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#8b949e">Body flows server-to-server over the DDI (data plane)</text>
+        <text x="750" y="378" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#3fb950" font-weight="700">Agent sees 469 tokens with 2 columns  |  Body stays out of LLM</text>
+    </svg>
+</section>
+
+<!-- Two Transfer Modes -->
+<section class="section" style="padding-top: 0;">
+    <h2 class="section-title">Two Transfer Modes</h2>
+    <p class="section-subtitle">
+        S2SP supports two data-plane strategies. Both keep body data out of the LLM context &mdash; they differ in <em>where</em> the body lives in transit.
     </p>
 
-    <img src="images/how_it_works.png" alt="How S2S Works" class="how-image" style="max-width: 100%;">
+    <div class="modes-grid">
+        <!-- ===== ASYNC MODE ===== -->
+        <div class="mode-card">
+            <div class="mode-header">
+                <span class="mode-badge" style="background: rgba(63,185,80,0.15); color: var(--green); border-color: rgba(63,185,80,0.35);">Default</span>
+                <h3>Async Mode</h3>
+            </div>
+            <p class="mode-tagline">Body cached on the resource server. The consumer pulls it over the <strong>DDI (Direct Data Interface)</strong> &mdash; a dedicated server-to-server HTTP channel. <strong>The agent process never touches the body.</strong></p>
+
+            <svg class="mode-diagram" viewBox="0 0 520 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Async mode diagram">
+                <defs>
+                    <marker id="arr-dash-green" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#8b949e"/>
+                    </marker>
+                    <marker id="arr-solid-green" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto">
+                        <path d="M0,0 L0,8 L10,4 z" fill="#3fb950"/>
+                    </marker>
+                </defs>
+
+                <!-- Agent (top center) -->
+                <rect x="190" y="20" width="140" height="70" rx="10" fill="#0d1117" stroke="#58a6ff" stroke-width="2"/>
+                <text x="260" y="50" text-anchor="middle" font-family="sans-serif" font-size="16" font-weight="600" fill="#58a6ff">Agent</text>
+                <text x="260" y="72" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#8b949e">LLM (abstract only)</text>
+
+                <!-- Weather Server (bottom left) -->
+                <rect x="30" y="230" width="150" height="70" rx="10" fill="#0d1117" stroke="#3fb950" stroke-width="2"/>
+                <text x="105" y="260" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="600" fill="#3fb950">Resource Server</text>
+                <text x="105" y="280" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#8b949e">caches body</text>
+
+                <!-- Consumer (bottom right) -->
+                <rect x="340" y="230" width="150" height="70" rx="10" fill="#0d1117" stroke="#d29922" stroke-width="2"/>
+                <text x="415" y="260" text-anchor="middle" font-family="sans-serif" font-size="15" font-weight="600" fill="#d29922">Consumer Server</text>
+                <text x="415" y="280" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#8b949e">merges + processes</text>
+
+                <!-- Control-plane lines (dashed) -->
+                <line x1="200" y1="92" x2="130" y2="228" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr-dash-green)"/>
+                <line x1="320" y1="92" x2="390" y2="228" stroke="#8b949e" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr-dash-green)"/>
+
+                <text x="118" y="150" text-anchor="end" font-family="sans-serif" font-size="11" fill="#8b949e" font-style="italic">abstract</text>
+                <text x="118" y="164" text-anchor="end" font-family="sans-serif" font-size="11" fill="#8b949e" font-style="italic">+ resource_url</text>
+
+                <text x="405" y="150" text-anchor="start" font-family="sans-serif" font-size="11" fill="#8b949e" font-style="italic">abstract +</text>
+                <text x="405" y="164" text-anchor="start" font-family="sans-serif" font-size="11" fill="#8b949e" font-style="italic">resource_url</text>
+
+                <!-- Data-plane line (solid green, server-to-server) -->
+                <line x1="340" y1="270" x2="182" y2="270" stroke="#3fb950" stroke-width="2.2" marker-end="url(#arr-solid-green)"/>
+                <text x="260" y="254" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="700" fill="#3fb950">DDI</text>
+                <text x="260" y="266" text-anchor="middle" font-family="monospace" font-size="10" fill="#3fb950">POST /s2sp/data/{token}</text>
+                <text x="260" y="320" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#3fb950" font-weight="600">DDI &mdash; direct server-to-server, bypasses agent entirely</text>
+            </svg>
+
+            <ul class="mode-list">
+                <li><strong>Body location:</strong> cached on resource server</li>
+                <li><strong>DDI path:</strong> direct HTTP, server &rarr; server</li>
+                <li><strong>Agent process sees body:</strong> no</li>
+                <li><strong>Best for:</strong> large payloads, multi-hop pipelines, when servers can reach each other</li>
+            </ul>
+        </div>
+
+        <!-- ===== SYNC MODE ===== -->
+        <div class="mode-card">
+            <div class="mode-header">
+                <span class="mode-badge" style="background: rgba(88,166,255,0.15); color: var(--blue); border-color: rgba(88,166,255,0.35);">Fallback</span>
+                <h3>Sync Mode</h3>
+            </div>
+            <p class="mode-tagline">The agent process uses an SDK layer: the LLM sees the abstract only, while the DDI buffer carries the body out-of-band. Abstract and body stay separate before the consumer call.</p>
+
+            <svg class="mode-diagram" viewBox="0 0 640 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sync mode with Control and Data domains">
+                <defs>
+                    <marker id="sync-arr-blue" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto">
+                        <path d="M0,0 L0,8 L10,4 z" fill="#58a6ff"/>
+                    </marker>
+                    <marker id="sync-arr-purple" markerWidth="11" markerHeight="11" refX="9" refY="4" orient="auto">
+                        <path d="M0,0 L0,8 L10,4 z" fill="#bc8cff"/>
+                    </marker>
+                </defs>
+
+                <!-- Agent Process (outer container) -->
+                <rect x="170" y="20" width="300" height="260" rx="12" fill="#0d1117" stroke="#58a6ff" stroke-width="2"/>
+                <text x="320" y="42" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#58a6ff">Agent Process</text>
+
+                <!-- ===== LLM Context ===== -->
+                <rect x="185" y="55" width="270" height="80" rx="8" fill="#161b22" stroke="#58a6ff" stroke-width="1.2" stroke-dasharray="5 3"/>
+                <text x="320" y="72" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="700" letter-spacing="1.8" fill="#58a6ff">LLM CONTEXT</text>
+                <rect x="255" y="82" width="130" height="45" rx="6" fill="#0d1117" stroke="#58a6ff" stroke-width="1"/>
+                <text x="320" y="103" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="700" fill="#58a6ff">LLM</text>
+                <text x="320" y="119" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#8b949e">abstract only</text>
+
+                <!-- ===== SDK Buffer ===== -->
+                <rect x="185" y="150" width="270" height="110" rx="8" fill="#161b22" stroke="#bc8cff" stroke-width="1.2" stroke-dasharray="5 3"/>
+                <text x="320" y="167" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="700" letter-spacing="1.8" fill="#bc8cff">SDK BUFFER</text>
+                <rect x="240" y="180" width="160" height="62" rx="6" fill="#0d1117" stroke="#bc8cff" stroke-width="1"/>
+                <text x="320" y="206" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#bc8cff">DDI</text>
+                <text x="320" y="226" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#8b949e">Direct Data Interface</text>
+
+                <!-- Resource Server (left) -->
+                <rect x="10" y="115" width="130" height="90" rx="10" fill="#0d1117" stroke="#3fb950" stroke-width="2"/>
+                <text x="75" y="150" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#3fb950">Resource</text>
+                <text x="75" y="168" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#3fb950">Server</text>
+                <text x="75" y="188" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#8b949e">returns inline</text>
+
+                <!-- Consumer Server (right) -->
+                <rect x="500" y="115" width="130" height="90" rx="10" fill="#0d1117" stroke="#d29922" stroke-width="2"/>
+                <text x="565" y="150" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#d29922">Consumer</text>
+                <text x="565" y="168" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="700" fill="#d29922">Server</text>
+                <text x="565" y="188" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#8b949e">merges + processes</text>
+
+                <!-- Resource → Control (abstract) -->
+                <line x1="140" y1="138" x2="183" y2="100" stroke="#58a6ff" stroke-width="2" marker-end="url(#sync-arr-blue)"/>
+                <text x="160" y="94" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#58a6ff">abstract</text>
+
+                <!-- Resource → Data (body) -->
+                <line x1="140" y1="182" x2="183" y2="210" stroke="#bc8cff" stroke-width="2" marker-end="url(#sync-arr-purple)"/>
+                <text x="160" y="232" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#bc8cff">body inline</text>
+
+                <!-- Control → Consumer (abstract) -->
+                <line x1="457" y1="100" x2="500" y2="138" stroke="#58a6ff" stroke-width="2" marker-end="url(#sync-arr-blue)"/>
+                <text x="480" y="94" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#58a6ff">abstract</text>
+
+                <!-- Data → Consumer (body via DDI) -->
+                <line x1="457" y1="210" x2="500" y2="182" stroke="#bc8cff" stroke-width="2" marker-end="url(#sync-arr-purple)"/>
+                <text x="480" y="232" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="600" fill="#bc8cff">body (via DDI)</text>
+
+                <!-- Caption -->
+                <text x="320" y="310" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#bc8cff" font-weight="600">data plane &mdash; body transits the SDK buffer, not the LLM context</text>
+            </svg>
+
+            <ul class="mode-list">
+                <li><strong>Abstract path:</strong> resource &rarr; LLM context &rarr; consumer arguments</li>
+                <li><strong>Body path:</strong> resource &rarr; SDK buffer &rarr; consumer arguments</li>
+                <li><strong>LLM sees body:</strong> no, when the agent uses the S2SP dispatcher correctly</li>
+                <li><strong>Best for:</strong> firewalled servers, single-hop workflows, local dev</li>
+            </ul>
+        </div>
+    </div>
+
+    <aside class="analogy-note">
+        <div class="analogy-title">Why &ldquo;DDI&rdquo;?</div>
+        <p>
+            The Direct Data Interface mirrors a familiar pattern from computer architecture:
+            a dedicated point-to-point link that carries routine I/O between components so
+            the processor core never has to spend cycles on it (see, for example,
+            <a href="https://en.wikipedia.org/wiki/Direct_Media_Interface" target="_blank" rel="noopener">DMI</a>).
+            S2SP applies the same idea at the agent layer. The DDI is the protocol&rsquo;s
+            data plane &mdash; it can run directly between two MCP servers (async) or
+            through the agent process (sync), but in either shape it carries bulk body
+            data without ever touching the LLM&rsquo;s reasoning context. The LLM stays
+            focused on decisions; the DDI carries the bytes.
+        </p>
+    </aside>
+
+    <div class="mode-compare">
+        <div class="mode-compare-cell">
+            <div class="mode-compare-key">Key invariant</div>
+            <div>In both modes the LLM context sees only the abstract columns the agent selected &mdash; token savings are identical.</div>
+        </div>
+        <div class="mode-compare-cell">
+            <div class="mode-compare-key">What differs</div>
+            <div>Where the <strong>DDI</strong> runs: directly between servers (async) or through the agent process (sync). Either way, it skips the LLM.</div>
+        </div>
+        <div class="mode-compare-cell">
+            <div class="mode-compare-key">Pick sync when</div>
+            <div>The consumer can't reach the resource server over HTTP (NAT, firewall, mTLS boundary).</div>
+        </div>
+    </div>
+</section>
+
+<!-- MCP-SD vs Progressive Disclosure -->
+<section class="section" style="padding-top: 0;">
+    <h2 class="section-title">MCP-SD vs. Progressive Disclosure</h2>
+    <p class="section-subtitle">
+        Several recent designs apply <em>progressive disclosure</em> to MCP. MCP-SD addresses a different axis &mdash; <strong>selective disclosure</strong> &mdash; and composes with the others instead of competing with them.
+    </p>
+
+    <div class="disclosure-intro">
+        <div class="disclosure-axis">
+            <div class="disclosure-axis-label">Progressive Disclosure</div>
+            <div class="disclosure-axis-body">
+                <strong>Time-axis staging:</strong> reveal a summary first, then more detail on demand. The agent pays one extra inference round-trip to <em>unlock</em> deeper layers. Used by Claude Skills and the MCP Progressive Disclosure extension.
+            </div>
+        </div>
+        <div class="disclosure-axis">
+            <div class="disclosure-axis-label">Selective Disclosure</div>
+            <div class="disclosure-axis-body">
+                <strong>Dimension-axis picking:</strong> the agent names exactly which <em>attributes</em> it wants to see and hides the rest. No extra round-trip &mdash; selection happens in the same call, so the agent never has to spend an inference unlocking more detail.
+            </div>
+        </div>
+    </div>
+
+    <div class="disclosure-formula">
+        <code><span style="color: var(--blue);">MCP-SD</span> = Selective Disclosure (control plane)<br><span style="color: var(--green);">S2SP</span> = MCP-SD + Server-to-Server Data Plane via DDI</code>
+    </div>
+
+    <h3 class="disclosure-subtitle">Where each design operates in the MCP pipe</h3>
+    <div class="disclosure-table-wrap">
+        <table class="disclosure-table">
+            <thead>
+                <tr>
+                    <th>Scheme</th>
+                    <th>Disclosure type</th>
+                    <th>What's disclosed</th>
+                    <th>When LLM sees it</th>
+                    <th>Extra round-trips</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Claude Skills</strong></td>
+                    <td>Progressive</td>
+                    <td>Skill content (SKILL.md + scripts)</td>
+                    <td>After model names the skill</td>
+                    <td>+1 per first use</td>
+                </tr>
+                <tr>
+                    <td><strong>MCP Progressive Disclosure</strong></td>
+                    <td>Progressive</td>
+                    <td>Full tool schema / inputSchema</td>
+                    <td>After <code>resources/read</code> fetch</td>
+                    <td>+1 per tool first use</td>
+                </tr>
+                <tr class="highlight-row">
+                    <td><strong>MCP-SD</strong><br><span class="muted">(impl: S2SP)</span></td>
+                    <td><strong>Selective</strong> + data-plane delegation</td>
+                    <td>Selected columns in LLM; body stays out</td>
+                    <td>Same call; body stays out of LLM when S2SP routing is used</td>
+                    <td><strong>0</strong></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="disclosure-takeaway">
+        <div class="disclosure-takeaway-title">What makes MCP-SD different</div>
+        <ul>
+            <li><strong>Different axis.</strong> Progressive disclosure stages <em>when</em> data arrives; selective disclosure chooses <em>which dimensions</em> arrive. Both are valid, and MCP-SD targets the under-addressed one.</li>
+            <li><strong>No extra round-trip.</strong> Selection happens in the same tool call (<code>abstract_domains=&quot;event,severity&quot;</code>). The agent doesn't have to spend an inference to decide <em>"should I unlock more?"</em> &mdash; it declares its attribute needs up front.</li>
+            <li><strong>Data-plane offload</strong> (S2SP implementation). On top of selection, body data is delegated to the DDI so async mode keeps it out of the agent process and sync mode keeps it out of the LLM when the dispatcher is installed.</li>
+            <li><strong>Composable, not competitive.</strong> Run Skills + MCP-SD together: Skills trims the capability surface the LLM sees, MCP-SD trims the payload surface. They solve disjoint problems.</li>
+        </ul>
+    </div>
 </section>
 
 <!-- Why S2SP -->
 <section class="section" style="padding-top: 0;">
     <h2 class="section-title">Why does S2SP matter?</h2>
     <p class="section-subtitle">
-        Current MCP forces all data through the agent. S2SP fixes this.
+        Current MCP workflows often route full tool results through the agent. S2SP offers a selective-disclosure path for tabular results.
     </p>
 
     <div class="features-grid">
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(63,185,80,0.15); color: var(--green);">$</div>
             <h3>Eliminate Token Waste</h3>
-            <p>A 50K-row CSV transfer consumes ~500K tokens through the agent. With S2SP: zero data tokens. Only small control messages pass through the agent.</p>
+            <p>In the weather-alert demo, a 2-column abstract used 469 tokens instead of 6,537 for the full 29-column result. Actual savings depend on row count, column count, and selected abstract fields.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(88,166,255,0.15); color: var(--blue);">&#9889;</div>
-            <h3>Sub-12ms Transfers</h3>
-            <p>Benchmarked 6&ndash;11ms mean latency for transfers up to 5MB. Data flows directly via HTTP, bypassing LLM inference entirely.</p>
+            <h3>Measured Local Fetch</h3>
+            <p>The demo's data-plane fetch completed in 7ms on localhost. Remote latency depends on the network path between the MCP servers.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(188,140,255,0.15); color: var(--purple);">&#128274;</div>
@@ -102,18 +489,18 @@
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(210,153,34,0.15); color: var(--orange);">&#128295;</div>
-            <h3>Zero New Dependencies</h3>
-            <p>Built on Starlette and httpx &mdash; already dependencies of MCP. S2SP adds nothing new to your dependency tree.</p>
+            <h3>Small Dependency Set</h3>
+            <p>The SDK uses FastMCP plus common Python HTTP components: Starlette, uvicorn, httpx, pydantic, and anyio.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(248,81,73,0.15); color: var(--red);">&#128737;</div>
-            <h3>Secure by Design</h3>
-            <p>256-bit presigned URLs &mdash; single-use, 10-min TTL. Agent-delegated authorization.</p>
+            <h3>Capability URLs</h3>
+            <p>256-bit presigned URLs are single-use and use a 10-minute TTL by default. Production deployments should use TLS and appropriate server access controls.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon" style="background: rgba(63,185,80,0.15); color: var(--green);">&#8596;</div>
-            <h3>Fully Backward Compatible</h3>
-            <p>S2SP uses existing MCP mechanisms: <code>experimental</code> capabilities, standard tools, logging notifications. No spec changes needed.</p>
+            <h3>MCP-Compatible Path</h3>
+            <p>S2SP uses standard MCP tools and JSON arguments. Traditional agents can call resource tools without <code>abstract_domains</code> and receive normal full results.</p>
         </div>
     </div>
 </section>
@@ -126,14 +513,14 @@
             <div class="usecase-icon" style="background: rgba(63,185,80,0.15); color: var(--green);">&#128202;</div>
             <div>
                 <h3>Database &rarr; Analytics Pipelines</h3>
-                <p>Transfer 50K-row query results directly from a database server to an analytics server. Agent says "analyze last month's sales" &mdash; data flows directly, results come back as a summary.</p>
+                <p>Route wide tabular query results from a database server to an analytics server. The agent can inspect selected columns, then let the consumer fetch the full selected rows.</p>
             </div>
         </div>
         <div class="usecase-item">
             <div class="usecase-icon" style="background: rgba(88,166,255,0.15); color: var(--blue);">&#128196;</div>
             <div>
-                <h3>File Processing Pipelines</h3>
-                <p>Send large files from a filesystem server to a processing server for OCR, text extraction, or image resizing &mdash; without base64-encoding megabytes into the agent's context.</p>
+                <h3>Structured API Pipelines</h3>
+                <p>Route CRM records, search results, alerts, or telemetry rows where the agent only needs a few fields to decide which rows a downstream tool should process.</p>
             </div>
         </div>
         <div class="usecase-item">
@@ -154,26 +541,26 @@
     <p style="color: var(--text-secondary); font-size: 13px; max-width: 700px; margin: 16px auto 0; text-align: center;">
         Data-plane fetch latency (7ms) measured on localhost. For remote deployments,
         latency depends on network distance between the two MCP servers, not the
-        protocol — S2SP adds no overhead beyond standard HTTP.
+        protocol overhead is the HTTP request plus JSON filtering and serialization.
     </p>
 </section>
 
 <!-- Quick Start -->
 <section class="section" style="padding-top: 0;">
     <h2 class="section-title">Quick Start</h2>
-    <p class="section-subtitle">Get up and running in minutes.</p>
+    <p class="section-subtitle">Minimal resource and consumer server setup.</p>
 
     <div class="install-block">
         <span class="dollar">$</span>
-        <code>pip install mcp-s2sp</code>
+        <code>pip install mcp-sd</code>
     </div>
 
     <h3 style="margin-top: 32px; margin-bottom: 16px; font-size: 16px; font-weight: 600;">Resource Server (exposes an S2SP tool)</h3>
-    <div class="code-block"><pre><span class="keyword">from</span> mcp_s2sp <span class="keyword">import</span> S2SPServer
+    <div class="code-block"><pre><span class="keyword">from</span> mcp_sd <span class="keyword">import</span> S2SPServer
 
 server = S2SPServer(<span class="string">"weather-server"</span>)
 
-<span class="decorator">@server.s2sp_resource_tool()</span>
+<span class="decorator">@server.sd_resource_tool()</span>
 <span class="keyword">async def</span> <span class="func">get_alerts</span>(area: <span class="func">str</span>) -> list[dict]:
     <span class="keyword">return await</span> <span class="func">fetch_from_nws</span>(area)</pre></div>
 
@@ -198,7 +585,7 @@ selected = [row <span class="keyword">for</span> row <span class="keyword">in</s
         <a href="docs/introduction.html" class="card-link">
             <div class="card-link-icon">&#128214;</div>
             <h3>Introduction</h3>
-            <p>Learn what S2S is, why it exists, and the core concepts behind the protocol.</p>
+            <p>Learn what MCP-SD and S2SP are, why they exist, and the core protocol concepts.</p>
         </a>
         <a href="docs/protocol.html" class="card-link">
             <div class="card-link-icon">&#128209;</div>
@@ -208,19 +595,19 @@ selected = [row <span class="keyword">for</span> row <span class="keyword">in</s
         <a href="docs/sdk.html" class="card-link">
             <div class="card-link-icon">&#128187;</div>
             <h3>Python SDK</h3>
-            <p>Build S2S-capable MCP servers with the mcp_s2sp Python package.</p>
+            <p>Build S2S-capable MCP servers with the mcp_sd Python package.</p>
         </a>
         <a href="docs/demos.html" class="card-link">
             <div class="card-link-icon">&#127919;</div>
             <h3>Demos &amp; Examples</h3>
-            <p>Three runnable demos: DB-to-Analytics, File Processing, CRM Sync.</p>
+            <p>Weather-agent demos for async mode, sync mode, and agent-framework adapters.</p>
         </a>
     </div>
 </section>
 
 <!-- Footer -->
 <footer class="footer">
-    <p>S2SP Protocol &mdash; An open extension for the <a href="https://modelcontextprotocol.io">Model Context Protocol</a></p>
+    <p>MCP-SD / S2SP &mdash; An open extension for the <a href="https://modelcontextprotocol.io">Model Context Protocol</a></p>
     <p style="margin-top: 8px;">Built with the MCP ecosystem.</p>
 </footer>
 

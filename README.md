@@ -1,8 +1,8 @@
-# S2SP Protocol Website
+# MCP-SD / S2SP Website
 
-Documentation website for the [S2SP (Server-to-Server Protocol)](https://github.com/s2sp-protocol/python-sdk) for MCP.
+Documentation website for **MCP-SD** (Selective Disclosure for MCP) and its reference implementation **S2SP** (Server-to-Server Protocol). Source: [python-sdk](https://github.com/mcp-sd/python-sdk).
 
-Live at: **https://s2sp-protocol.github.io/**
+Live at: **https://mcp-sd.github.io/**
 
 ## Pages
 
