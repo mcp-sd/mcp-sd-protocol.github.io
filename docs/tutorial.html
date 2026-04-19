@@ -142,7 +142,7 @@
         <div class="code-block">
             <pre><span class="string">$</span> cd /path/to/S2SP_protocol
 <span class="string">$</span> echo "$(pwd)/.venv/bin/python"
-<span class="comment"># Example: /Users/you/S2SP_protocol/.venv/bin/python</span></pre>
+<span class="comment"># Example: /path/to/S2SP_protocol/.venv/bin/python</span></pre>
         </div>
 
         <div class="step-header">
@@ -262,7 +262,7 @@
         <div class="code-block">
             <pre>draw_chart(
   abstract_data=<span class="string">'[{"_row_id":0,"event":"Wind Advisory","severity":"Moderate"}, ...]'</span>,
-  resource_url=<span class="string">"http://127.0.0.1:54321/s2sp/data/dK7x_..."</span>
+  resource_url=<span class="string">"https://resource-server.example/s2sp/data/&lt;opaque-token&gt;"</span>
 )</pre>
         </div>
 
